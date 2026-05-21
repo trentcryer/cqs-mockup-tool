@@ -1,0 +1,22 @@
+[project]
+name = "cqs-mockup-tool"
+version = "0.1.0"
+description = "Printful mockup generator for CQS (Custom Quartet Stuff)"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
+    "questionary>=2.1.1",
+    "rich>=15.0.0",
+]
+
+[project.scripts]
+cqs-mockup = "cqs_mockup.main:run"
+
+[tool.setuptools.packages.find]
+include = ["cqs_mockup*"]
+
+[dependency-groups]
+dev = [
+    "pexpect>=4.9.0",
+]

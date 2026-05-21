@@ -1,0 +1,16 @@
+[defaults]
+# Where mockup images are saved
+output_dir = "output"
+# "jpg" or "png"
+format = "jpg"
+
+[api]
+timeout = 30        # seconds per request
+poll_interval = 3   # seconds between task status checks
+max_polls = 20      # give up after this many checks (~60s)
+
+[favorites]
+# Printful product IDs to pin at the top of the selection list.
+# Find IDs at https://www.printful.com/api/products or by running the script once.
+# Examples: 71 = Unisex Staple T-Shirt (Bella+Canvas 3001), 380 = Unisex Hoodie, 19 = Mug
+product_ids = []
