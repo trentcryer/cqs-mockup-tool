@@ -77,16 +77,21 @@ def pick_placement(client: PrintfulClient, product_id: int) -> tuple[str, dict]:
     return placement, printfiles
 
 
-def get_print_position(printfiles: dict, placement: str, variant_ids: list[int]) -> dict:
+def get_print_position(printfiles: dict, placement: str, variant_ids: list[int], scale: float = 1.0) -> dict:
     pf_map = {pf["printfile_id"]: pf for pf in printfiles.get("printfiles", [])}
     for vp in printfiles.get("variant_printfiles", []):
         if vp["variant_id"] in variant_ids:
             pf_id = vp.get("placements", {}).get(placement)
             if pf_id and pf_id in pf_map:
                 pf = pf_map[pf_id]
-                w, h = pf["width"], pf["height"]
-                return {"area_width": w, "area_height": h, "width": w, "height": h, "top": 0, "left": 0}
-    return {"area_width": 1800, "area_height": 1800, "width": 1800, "height": 1800, "top": 0, "left": 0}
+                aw, ah = pf["width"], pf["height"]
+                w, h = round(aw * scale), round(ah * scale)
+                return {"area_width": aw, "area_height": ah, "width": w, "height": h,
+                        "top": round((ah - h) / 2), "left": round((aw - w) / 2)}
+    aw, ah = 1800, 1800
+    w, h = round(aw * scale), round(ah * scale)
+    return {"area_width": aw, "area_height": ah, "width": w, "height": h,
+            "top": round((ah - h) / 2), "left": round((aw - w) / 2)}
 
 
 def download_mockups(mockups: list[dict], output_dir: Path, product_title: str, placement: str, fmt: str) -> list[Path]:
@@ -126,7 +131,9 @@ def run() -> None:
 
             variant_ids = pick_color(client, product_id)
             placement, printfiles = pick_placement(client, product_id)
-            position = get_print_position(printfiles, placement, variant_ids)
+            raw_scale = questionary.text("Logo size % of print area (10–100, default 75):").ask() or "75"
+            scale = max(0.1, min(1.0, int(raw_scale) / 100))
+            position = get_print_position(printfiles, placement, variant_ids, scale=scale)
 
             with console.status(f"Uploading [cyan]{artwork.name}[/cyan]..."):
                 file_result = client.upload_file(artwork)

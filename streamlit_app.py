@@ -1,3 +1,4 @@
+import base64
 import os
 import tempfile
 from pathlib import Path
@@ -13,20 +14,178 @@ load_dotenv()
 
 st.set_page_config(
     page_title="CQS Mockup Generator",
-    page_icon="🎨",
+    page_icon="🎵",
     layout="centered",
 )
 
 st.markdown("""
 <style>
-    [data-testid="stAppViewContainer"] { background: #f8f8f6; }
-    [data-testid="stMain"] { padding-top: 2rem; }
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap');
+
+    /* Page background */
+    [data-testid="stAppViewContainer"] {
+        background: #f7f3ee;
+    }
+    [data-testid="stMain"] {
+        padding-top: 0 !important;
+    }
     section[data-testid="stSidebar"] { display: none; }
-    h1 { font-size: 1.8rem !important; font-weight: 700; letter-spacing: -0.5px; }
-    .subtitle { color: #888; font-size: 0.95rem; margin-top: -0.75rem; margin-bottom: 1.5rem; }
-    .mockup-header { font-size: 1rem; font-weight: 600; color: #333; margin-top: 2rem; margin-bottom: 0.5rem; }
-    .stButton > button { width: 100%; border-radius: 8px; height: 3rem; font-weight: 600; font-size: 1rem; }
-    div[data-testid="stFileUploader"] { border-radius: 10px; }
+
+    /* Header banner */
+    .cqs-header {
+        background: #1c1412;
+        color: #f7f3ee;
+        text-align: center;
+        padding: 2rem 1rem 1.5rem;
+        margin: -1rem -1rem 2rem;
+        border-bottom: 3px solid #b8892a;
+    }
+    .cqs-header h1 {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 2rem !important;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #f7f3ee !important;
+        margin: 0 0 0.25rem !important;
+    }
+    .cqs-tagline {
+        color: #b8892a;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+
+    /* Body text */
+    body, p, label, .stSelectbox, .stSlider {
+        font-family: 'Inter', sans-serif !important;
+    }
+
+    /* Section labels — red */
+    label[data-testid="stWidgetLabel"] p,
+    label[data-testid="stWidgetLabel"] div p,
+    [data-testid="stWidgetLabel"] p,
+    .stSlider label p,
+    .stSelectbox label p,
+    .stFileUploader label p {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+        color: #9b1c1c !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+
+    /* "Upload a PNG to get started" prompt and all markdown text */
+    [data-testid="stMarkdown"] h5,
+    [data-testid="stMarkdown"] p {
+        color: #9b1c1c !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+
+    /* Selectbox wrapper — position context for the music note */
+    [data-testid="stSelectbox"] {
+        position: relative;
+    }
+
+    /* The visible box */
+    [data-testid="stSelectbox"] > div > div {
+        border-radius: 6px !important;
+        border: 2px solid #9b1c1c !important;
+        background: #ffffff !important;
+        padding-right: 2.5rem !important;
+    }
+
+    /* Hide the default SVG chevron Streamlit injects */
+    [data-testid="stSelectbox"] svg {
+        display: none !important;
+    }
+
+    /* Music note pseudo-element as the custom indicator */
+    [data-testid="stSelectbox"] > div > div::after {
+        content: "♪";
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.1rem;
+        color: #9b1c1c;
+        pointer-events: none;
+    }
+
+    /* File uploader */
+    div[data-testid="stFileUploader"] {
+        border-radius: 8px;
+        border: 2px dashed #b8892a !important;
+        background: #fff;
+    }
+
+    /* Slider accent */
+    [data-testid="stSlider"] .st-emotion-cache-1eyj6b6,
+    [data-testid="stSlider"] div[role="slider"] {
+        background: #b8892a !important;
+    }
+
+    /* Primary button */
+    .stButton > button[kind="primary"] {
+        background: #1c1412 !important;
+        color: #f7f3ee !important;
+        border: 2px solid #b8892a !important;
+        border-radius: 6px !important;
+        height: 3rem !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        letter-spacing: 1px !important;
+        text-transform: uppercase !important;
+        transition: background 0.2s, color 0.2s;
+        width: 100%;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background: #b8892a !important;
+        color: #1c1412 !important;
+    }
+
+    /* Download button */
+    .stDownloadButton > button {
+        background: transparent !important;
+        color: #1c1412 !important;
+        border: 1.5px solid #1c1412 !important;
+        border-radius: 6px !important;
+        height: 2.75rem !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+        letter-spacing: 1px !important;
+        text-transform: uppercase !important;
+        width: 100%;
+    }
+    .stDownloadButton > button:hover {
+        background: #1c1412 !important;
+        color: #f7f3ee !important;
+    }
+
+    /* Divider */
+    hr {
+        border-color: #d4c5b0 !important;
+    }
+
+    /* Mockup result header */
+    .mockup-header {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1c1412;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Mockup images */
+    [data-testid="stImage"] img {
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(28,20,18,0.12);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -55,8 +214,17 @@ def fetch_printfiles(product_id: int):
 
 
 # --- Header ---
-st.title("CQS Mockup Generator")
-st.markdown('<p class="subtitle">Upload artwork · Pick a product · Download mockups</p>', unsafe_allow_html=True)
+_logo_path = Path(__file__).parent / "cqs_logo.png"
+_logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode() if _logo_path.exists() else ""
+_logo_img = f'<img src="data:image/png;base64,{_logo_b64}" style="height:90px;margin-bottom:0.75rem;" />' if _logo_b64 else ""
+
+st.markdown(f"""
+<div class="cqs-header">
+    {_logo_img}
+    <h1>CQS Mockup Generator</h1>
+    <p class="cqs-tagline">Custom Quartet Stuff &nbsp;·&nbsp; Upload · Configure · Download</p>
+</div>
+""", unsafe_allow_html=True)
 
 # --- Artwork upload ---
 artwork = st.file_uploader("Artwork file", type=["png"], label_visibility="collapsed",
@@ -100,6 +268,8 @@ with col2:
 
 variant_ids = color_map[selected_color]
 
+logo_scale = st.slider("Logo size (% of print area)", min_value=10, max_value=100, value=75, step=5) / 100
+
 st.markdown("")
 
 # --- Generate ---
@@ -114,7 +284,7 @@ if st.button("Generate Mockup", type="primary", disabled=not ready):
                 tmp.write(artwork.read())
                 tmp_path = Path(tmp.name)
 
-            position = get_print_position(printfiles_data, selected_placement, variant_ids)
+            position = get_print_position(printfiles_data, selected_placement, variant_ids, scale=logo_scale)
 
             with PrintfulClient(api_key) as client:
                 file_result = client.upload_file(tmp_path)
@@ -143,7 +313,7 @@ if "mockups" in st.session_state:
     product_title: str = st.session_state["mockup_product"]
 
     st.divider()
-    st.markdown(f'<p class="mockup-header">✓ {len(mockups)} mockup{"s" if len(mockups) != 1 else ""} · {product_title}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="mockup-header">{len(mockups)} Mockup{"s" if len(mockups) != 1 else ""} &mdash; {product_title}</p>', unsafe_allow_html=True)
 
     for mockup in mockups:
         st.image(mockup["mockup_url"], use_container_width=True)
