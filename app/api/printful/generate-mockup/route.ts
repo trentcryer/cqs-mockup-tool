@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPrintfulClient, getDefaultPrintPosition, getPrintAreaForPlacement, PrintfulPosition } from '@/lib/printful'
+import { getPrintfulClient, getDefaultPrintPosition, getPrintAreaForPlacement, transformToPosition, PrintfulPosition } from '@/lib/printful'
 
 export const runtime = 'nodejs' // needed for Buffer + FormData file handling
 
@@ -31,23 +31,8 @@ export async function POST(req: NextRequest) {
     let position: PrintfulPosition
     if (transformJson) {
       const t = JSON.parse(transformJson)
-      const area = getPrintAreaForPlacement(printfiles, placement, variantIds)
-      const aw = area?.width ?? 1800
-      const ah = area?.height ?? 1800
-
-      let w = Math.round((t.normWidth ?? 0.5) * aw)
-      let h = Math.round((t.normHeight ?? 0.5) * ah)
-      let left = Math.round((t.normLeft ?? 0.25) * aw)
-      let top = Math.round((t.normTop ?? 0.25) * ah)
-      const rotation = Math.round(t.angle ?? 0)
-
-      // Safety clamps
-      w = Math.max(10, Math.min(aw, w))
-      h = Math.max(10, Math.min(ah, h))
-      left = Math.max(0, Math.min(aw - w, left))
-      top = Math.max(0, Math.min(ah - h, top))
-
-      position = { area_width: aw, area_height: ah, width: w, height: h, left, top, rotation }
+      const area = getPrintAreaForPlacement(printfiles, placement, variantIds) ?? { width: 1800, height: 1800 }
+      position = transformToPosition(t, area)
     } else {
       position = getDefaultPrintPosition(printfiles, placement, variantIds, 0.72)
     }

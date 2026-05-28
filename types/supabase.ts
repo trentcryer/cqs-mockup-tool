@@ -18,6 +18,8 @@ export interface Database {
           quartet_name: string
           email: string | null
           avatar_url: string | null
+          shopify_collection_id: number | null
+          shopify_collection_title: string | null
           created_at: string
           updated_at: string
         }
@@ -26,6 +28,8 @@ export interface Database {
           quartet_name?: string
           email?: string | null
           avatar_url?: string | null
+          shopify_collection_id?: number | null
+          shopify_collection_title?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -33,6 +37,8 @@ export interface Database {
           quartet_name?: string
           email?: string | null
           avatar_url?: string | null
+          shopify_collection_id?: number | null
+          shopify_collection_title?: string | null
           updated_at?: string
         }
       }
@@ -78,6 +84,7 @@ export interface Database {
           notes: string | null
           status: 'draft' | 'review_requested' | 'approved' | 'pushed_to_shopify'
           printful_file_id: number | null
+          printful_sync_product_id: number | null
           mockup_urls: Json | null
           shopify_product_id: number | null
           shopify_product_url: string | null
@@ -107,6 +114,7 @@ export interface Database {
           notes?: string | null
           status?: 'draft' | 'review_requested' | 'approved' | 'pushed_to_shopify'
           printful_file_id?: number | null
+          printful_sync_product_id?: number | null
           mockup_urls?: Json | null
           shopify_product_id?: number | null
           shopify_product_url?: string | null
@@ -121,3 +129,4 @@ export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Logo = Database['public']['Tables']['logos']['Row']
 export type Design = Database['public']['Tables']['designs']['Row']
 export type DesignStatus = Design['status']
+export type ShopifyCollection = { id: number; title: string; handle: string }

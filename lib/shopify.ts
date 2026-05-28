@@ -84,3 +84,38 @@ export async function updateProduct(productId: number, updates: Partial<ShopifyP
   })
   return data.product
 }
+
+export interface ShopifyCollection {
+  id: number
+  title: string
+  handle: string
+}
+
+// Returns all custom collections (up to 250). For stores with 250+ collections,
+// add cursor-based pagination using the Link response header.
+export async function listCollections(): Promise<ShopifyCollection[]> {
+  const data = await shopifyFetch<{ custom_collections: any[] }>(
+    '/custom_collections.json?limit=250'
+  )
+  return (data.custom_collections || []).map((c: any) => ({
+    id: c.id,
+    title: c.title,
+    handle: c.handle,
+  }))
+}
+
+export async function createCollection(title: string): Promise<ShopifyCollection> {
+  const data = await shopifyFetch<{ custom_collection: any }>('/custom_collections.json', {
+    method: 'POST',
+    body: JSON.stringify({ custom_collection: { title } }),
+  })
+  const c = data.custom_collection
+  return { id: c.id, title: c.title, handle: c.handle }
+}
+
+export async function addProductToCollection(collectionId: number, productId: number): Promise<void> {
+  await shopifyFetch<unknown>('/collects.json', {
+    method: 'POST',
+    body: JSON.stringify({ collect: { collection_id: collectionId, product_id: productId } }),
+  })
+}

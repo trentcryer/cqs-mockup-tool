@@ -6,12 +6,17 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     const { id } = await params
     const client = getPrintfulClient()
 
-    const product = await client.getProduct(parseInt(id))
+    // Printful v1 returns { product: {id, title, ...}, variants: [...] } at the result level.
+    // The client returns data.result directly, so we must unwrap the nested .product object.
+    const raw = await client.getProduct(parseInt(id)) as any
+    const productInfo = raw.product ?? raw      // v1: nested; fallback for flat structures
+    const variantsList: any[] = raw.variants ?? []
+
     const printfiles = await client.getPrintfiles(parseInt(id))
 
     // Group variants by color (like the legacy Streamlit)
     const colorMap: Record<string, number[]> = {}
-    for (const v of product.variants || []) {
+    for (const v of variantsList) {
       const color = v.color || 'Default'
       if (!colorMap[color]) colorMap[color] = []
       colorMap[color].push(v.id)
@@ -25,13 +30,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
     return NextResponse.json({
       product: {
-        id: product.id,
-        title: product.title,
-        variants: product.variants?.slice(0, 8) || [], // small sample for preview images
+        id: productInfo.id,
+        title: productInfo.title,
+        variants: variantsList.slice(0, 8), // small sample for preview images
       },
       colorMap,
       placements,
-      printfiles, // full data available to client if needed
+      printfiles,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Printful error' }, { status: 500 })

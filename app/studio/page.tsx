@@ -51,7 +51,7 @@ export default async function MyStudioPage() {
 
     const trentEmail = process.env.TRENT_EMAIL || 'trent@example.com'
 
-    await (sb.from('designs') as any).update({ status: 'review_requested' }).eq('id', designId)
+    await (admin.from('designs') as any).update({ status: 'review_requested' }).eq('id', designId)
 
     try {
       await sendReviewRequestEmail({
@@ -70,6 +70,7 @@ export default async function MyStudioPage() {
     }
 
     revalidatePath('/studio')
+    revalidatePath('/admin')
   }
 
   async function deleteDesign(designId: string) {

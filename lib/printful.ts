@@ -185,6 +185,44 @@ class PrintfulClient {
   /**
    * Poll until completed or failed (up to ~60s default).
    */
+  /**
+   * Creates a sync product in your Printful store (Order Management API).
+   * This is separate from the Mockup Generator — it creates a real fulfillable product.
+   * The optional PRINTFUL_STORE_ID env var scopes the request to a specific store
+   * (needed only if your API key has access to multiple stores).
+   */
+  async createSyncProduct(params: {
+    name: string
+    variantIds: number[]
+    placement: string
+    imageUrl: string
+    position: PrintfulPosition
+    retailPrice?: string
+  }): Promise<{ id: number; name: string }> {
+    const { name, variantIds, placement, imageUrl, position, retailPrice = '35.00' } = params
+
+    const body = {
+      sync_product: { name },
+      sync_variants: variantIds.map(variantId => ({
+        variant_id: variantId,
+        retail_price: retailPrice,
+        files: [{ placement, url: imageUrl, position }],
+      })),
+    }
+
+    const extraHeaders: Record<string, string> = {}
+    if (process.env.PRINTFUL_STORE_ID) {
+      extraHeaders['X-PF-Store-Id'] = process.env.PRINTFUL_STORE_ID
+    }
+
+    // Printful v1: result = { sync_product: {...}, sync_variants: [...] }
+    const result = await this.request<{ sync_product: { id: number; name: string } }>(
+      '/store/products',
+      { method: 'POST', body: JSON.stringify(body), headers: extraHeaders }
+    )
+    return result.sync_product
+  }
+
   async pollTask(
     taskKey: string,
     intervalMs = 3000,
@@ -257,6 +295,28 @@ export function getDefaultPrintPosition(
     top: Math.round((ah - h) / 2),
     left: Math.round((aw - w) / 2),
   }
+}
+
+/**
+ * Converts a normalised editor transform into a Printful position object.
+ * Shared by the mockup generator route and the admin approval action.
+ */
+export function transformToPosition(
+  transform: { normLeft: number; normTop: number; normWidth: number; normHeight: number; angle?: number },
+  area: { width: number; height: number }
+): PrintfulPosition {
+  const aw = area.width
+  const ah = area.height
+  let w = Math.round((transform.normWidth ?? 0.5) * aw)
+  let h = Math.round((transform.normHeight ?? 0.5) * ah)
+  let left = Math.round((transform.normLeft ?? 0.25) * aw)
+  let top = Math.round((transform.normTop ?? 0.25) * ah)
+  const rotation = Math.round(transform.angle ?? 0)
+  w = Math.max(10, Math.min(aw, w))
+  h = Math.max(10, Math.min(ah, h))
+  left = Math.max(0, Math.min(aw - w, left))
+  top = Math.max(0, Math.min(ah - h, top))
+  return { area_width: aw, area_height: ah, width: w, height: h, left, top, rotation }
 }
 
 /**

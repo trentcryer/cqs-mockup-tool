@@ -324,6 +324,7 @@ export default function EditorPage() {
         transform: currentTransform || {},
         notes: notes || null,
         status: 'draft' as const,
+        ...(generatedMockups.length > 0 && { mockup_urls: generatedMockups }),
       }
 
       if (logoRowId) {
