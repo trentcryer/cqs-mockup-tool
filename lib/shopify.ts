@@ -1,47 +1,18 @@
 /**
  * Minimal Shopify Admin API client for CQS
- * Uses OAuth client_credentials flow — no static token needed.
+ * Uses static Admin API access token (SHOPIFY_ACCESS_TOKEN).
  * Server-only.
  */
 
-const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN   // e.g. custom-quartet-stuff.myshopify.com
-const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID
-const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET
+const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN
 const API_VERSION = process.env.SHOPIFY_API_VERSION || '2025-01'
 
-// Extract shop subdomain from full domain
-const SHOP = SHOPIFY_DOMAIN?.replace('.myshopify.com', '')
-
-// Token cache — reused across requests until near expiry
-let cachedToken: string | null = null
-let tokenExpiresAt = 0
-
-async function getToken(): Promise<string> {
-  if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken
-
-  if (!SHOP || !CLIENT_ID || !CLIENT_SECRET) {
-    throw new ShopifyError('Shopify credentials not configured (SHOPIFY_STORE_DOMAIN / SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET)')
+function getToken(): string {
+  if (!SHOPIFY_DOMAIN || !ACCESS_TOKEN) {
+    throw new ShopifyError('Shopify credentials not configured (SHOPIFY_STORE_DOMAIN / SHOPIFY_ACCESS_TOKEN)')
   }
-
-  const res = await fetch(`https://${SHOP}.myshopify.com/admin/oauth/access_token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-    }),
-  })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new ShopifyError(`Token request failed ${res.status}: ${text}`, res.status)
-  }
-
-  const { access_token, expires_in } = await res.json()
-  cachedToken = access_token
-  tokenExpiresAt = Date.now() + (expires_in ?? 3600) * 1000
-  return access_token
+  return ACCESS_TOKEN
 }
 
 export class ShopifyError extends Error {
@@ -52,7 +23,7 @@ export class ShopifyError extends Error {
 }
 
 async function shopifyFetch<T>(path: string, options: RequestInit = {}, retries = 3): Promise<T> {
-  const token = await getToken()
+  const token = getToken()
   const url = `https://${SHOPIFY_DOMAIN}/admin/api/${API_VERSION}${path}`
 
   const res = await fetch(url, {
