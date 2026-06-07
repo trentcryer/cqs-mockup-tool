@@ -21,7 +21,7 @@ async function getToken(): Promise<string> {
     throw new ShopifyError('Shopify credentials not configured (SHOPIFY_STORE_DOMAIN / SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET)')
   }
 
-  const res = await fetch(`https://${SHOP}.myshopify.com/admin/oauth/access_token`, {
+  const res = await fetch(`https://accounts.shopify.com/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
