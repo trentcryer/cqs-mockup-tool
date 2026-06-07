@@ -1,6 +1,6 @@
 /**
  * Minimal Shopify Admin API client for CQS
- * Uses client_credentials grant with Basic Auth header.
+ * Uses client_credentials grant against the shop-specific token endpoint.
  * Server-only.
  */
 
@@ -19,15 +19,14 @@ async function getToken(): Promise<string> {
     throw new ShopifyError('Shopify credentials not configured')
   }
 
-  const basicAuth = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
-
-  const res = await fetch('https://accounts.shopify.com/oauth/token', {
+  const res = await fetch(`https://${SHOPIFY_DOMAIN}/admin/oauth/access_token`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${basicAuth}`,
-    },
-    body: new URLSearchParams({ grant_type: 'client_credentials' }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+    }),
   })
 
   if (!res.ok) {
