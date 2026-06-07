@@ -5,7 +5,7 @@ export const runtime = 'nodejs' // needed for Buffer + FormData file handling
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData()
+    const formData = await req.formData() as any
 
     const productId = parseInt(formData.get('productId') as string)
     const variantIds = JSON.parse(formData.get('variantIds') as string) as number[]
