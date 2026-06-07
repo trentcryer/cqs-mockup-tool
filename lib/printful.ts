@@ -54,6 +54,29 @@ export interface PrintfulPrintfiles {
   }>
 }
 
+export interface PrintfulTemplate {
+  template_id: number
+  image_url: string
+  background_url: string | null
+  background_color: string | null
+  template_width: number
+  template_height: number
+  print_area_width: number   // px — divide by template_width/height for CSS fractions
+  print_area_height: number
+  print_area_top: number
+  print_area_left: number
+  printfile_id: number
+  orientation?: string
+}
+
+export interface PrintfulTemplatesResponse {
+  templates: PrintfulTemplate[]
+  variant_mapping: Array<{
+    variant_id: number
+    templates: Array<{ placement: string; template_id: number }>
+  }>
+}
+
 export interface PrintfulPosition {
   area_width: number
   area_height: number
@@ -121,6 +144,10 @@ class PrintfulClient {
   // --- Mockup Generator ---
   async getPrintfiles(productId: number): Promise<PrintfulPrintfiles> {
     return this.request(`/mockup-generator/printfiles/${productId}`)
+  }
+
+  async getTemplates(productId: number): Promise<PrintfulTemplatesResponse> {
+    return this.request<PrintfulTemplatesResponse>(`/mockup-generator/templates/${productId}`)
   }
 
   /**
@@ -197,15 +224,16 @@ class PrintfulClient {
     placement: string
     imageUrl: string
     position: PrintfulPosition
-    retailPrice?: string
+    retailPrice?: string                          // flat price for all variants
+    variantPrices?: Record<number, string>        // per-variant prices (overrides retailPrice)
   }): Promise<{ id: number; name: string }> {
-    const { name, variantIds, placement, imageUrl, position, retailPrice = '35.00' } = params
+    const { name, variantIds, placement, imageUrl, position, retailPrice = '35.00', variantPrices } = params
 
     const body = {
       sync_product: { name },
       sync_variants: variantIds.map(variantId => ({
         variant_id: variantId,
-        retail_price: retailPrice,
+        retail_price: variantPrices?.[variantId] ?? retailPrice,
         files: [{ placement, url: imageUrl, position }],
       })),
     }
