@@ -1,18 +1,44 @@
 /**
  * Minimal Shopify Admin API client for CQS
- * Uses SHOPIFY_CLIENT_SECRET directly as the Admin API access token.
+ * Uses client_credentials grant with Basic Auth header.
  * Server-only.
  */
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN
+const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID
 const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET
 const API_VERSION = process.env.SHOPIFY_API_VERSION || '2025-01'
 
-function getToken(): string {
-  if (!SHOPIFY_DOMAIN || !CLIENT_SECRET) {
-    throw new ShopifyError('Shopify credentials not configured (SHOPIFY_STORE_DOMAIN / SHOPIFY_CLIENT_SECRET)')
+let cachedToken: string | null = null
+let tokenExpiresAt = 0
+
+async function getToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken
+
+  if (!SHOPIFY_DOMAIN || !CLIENT_ID || !CLIENT_SECRET) {
+    throw new ShopifyError('Shopify credentials not configured')
   }
-  return CLIENT_SECRET
+
+  const basicAuth = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
+
+  const res = await fetch('https://accounts.shopify.com/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${basicAuth}`,
+    },
+    body: new URLSearchParams({ grant_type: 'client_credentials' }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new ShopifyError(`Token request failed ${res.status}: ${text}`, res.status)
+  }
+
+  const { access_token, expires_in } = await res.json()
+  cachedToken = access_token
+  tokenExpiresAt = Date.now() + (expires_in ?? 3600) * 1000
+  return access_token
 }
 
 export class ShopifyError extends Error {
@@ -23,7 +49,7 @@ export class ShopifyError extends Error {
 }
 
 async function shopifyFetch<T>(path: string, options: RequestInit = {}, retries = 3): Promise<T> {
-  const token = getToken()
+  const token = await getToken()
   const url = `https://${SHOPIFY_DOMAIN}/admin/api/${API_VERSION}${path}`
 
   const res = await fetch(url, {
@@ -224,7 +250,7 @@ export async function applyPriceSuggestion(productId: number, reductionPct = 0.1
 
 // Internal: fetch with raw response to read Link header for cursor pagination
 async function shopifyRawFetch(url: string, retries = 3): Promise<{ data: any; nextLink: string | null }> {
-  const token = getToken()
+  const token = await getToken()
   const res = await fetch(url, {
     headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
   })
