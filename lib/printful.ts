@@ -328,15 +328,16 @@ export function transformToPosition(
 ): PrintfulPosition {
   const aw = area.width
   const ah = area.height
-  let w = Math.round((transform.normWidth ?? 0.5) * aw)
-  let h = Math.round((transform.normHeight ?? 0.5) * ah)
-  let left = Math.round((transform.normLeft ?? 0.25) * aw)
-  let top = Math.round((transform.normTop ?? 0.25) * ah)
-  const rotation = Math.round(transform.angle ?? 0)
+  let w = Math.round((transform.normWidth ?? 0.35) * aw)
+  let h = Math.round((transform.normHeight ?? 0.35) * ah)
   w = Math.max(10, Math.min(aw, w))
   h = Math.max(10, Math.min(ah, h))
+  // normLeft/normTop are the CENTER of the logo (0.5 = centered), convert to top-left corner
+  let left = Math.round((transform.normLeft ?? 0.5) * aw - w / 2)
+  let top = Math.round((transform.normTop ?? 0.5) * ah - h / 2)
   left = Math.max(0, Math.min(aw - w, left))
   top = Math.max(0, Math.min(ah - h, top))
+  const rotation = Math.round(transform.angle ?? 0)
   return { area_width: aw, area_height: ah, width: w, height: h, left, top, rotation }
 }
 
