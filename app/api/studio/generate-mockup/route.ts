@@ -40,31 +40,32 @@ export async function POST(req: NextRequest) {
       transform = body.transform
       const logoPath: string = body.logoPath
 
-      if (!logoPath) {
-        return NextResponse.json({ error: 'logoPath is required' }, { status: 400 })
-      }
+      // Prefer base64 sent directly from the app (avoids Supabase fetch entirely)
+      if (body.logoBase64) {
+        imageData = body.logoBase64
+        console.log(`Logo base64 received from app for product ${productId}`)
+      } else {
+        if (!logoPath) {
+          return NextResponse.json({ error: 'logoPath or logoBase64 is required' }, { status: 400 })
+        }
+        const { data: signedData, error: signedError } = await admin.storage
+          .from('cqs-assets')
+          .createSignedUrl(logoPath, 300)
 
-      // Fetch from Supabase on our server (this works), encode as base64
-      // so Printful never needs to reach Supabase directly
-      const { data: signedData, error: signedError } = await admin.storage
-        .from('cqs-assets')
-        .createSignedUrl(logoPath, 300)
-
-      if (signedError || !signedData?.signedUrl) {
-        console.error('Signed URL error:', signedError)
-        return NextResponse.json({ error: 'Could not access logo' }, { status: 400 })
+        if (signedError || !signedData?.signedUrl) {
+          return NextResponse.json({ error: 'Could not access logo' }, { status: 400 })
+        }
+        const logoRes = await fetch(signedData.signedUrl)
+        if (!logoRes.ok) {
+          return NextResponse.json({ error: `Logo fetch failed: ${logoRes.status}` }, { status: 400 })
+        }
+        const logoBuf = Buffer.from(await logoRes.arrayBuffer())
+        if (logoBuf.length === 0) {
+          return NextResponse.json({ error: 'Logo file is empty — re-upload your logo and try again' }, { status: 400 })
+        }
+        imageData = logoBuf.toString('base64')
+        console.log(`Logo fetched from Supabase: ${logoBuf.length} bytes`)
       }
-
-      const logoRes = await fetch(signedData.signedUrl)
-      if (!logoRes.ok) {
-        return NextResponse.json({ error: `Logo fetch failed: ${logoRes.status}` }, { status: 400 })
-      }
-      const logoBuf = Buffer.from(await logoRes.arrayBuffer())
-      if (logoBuf.length === 0) {
-        return NextResponse.json({ error: 'Logo file is empty' }, { status: 400 })
-      }
-      imageData = logoBuf.toString('base64')
-      console.log(`Logo fetched: ${logoBuf.length} bytes for product ${productId}`)
     }
 
     let printfiles = printfilesCache.get(productId)
