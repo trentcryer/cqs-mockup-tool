@@ -192,7 +192,7 @@ class PrintfulClient {
       files: [
         {
           placement,
-          image_url,
+          url: image_url,
           position,
         },
       ],
