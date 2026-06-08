@@ -155,17 +155,16 @@ class PrintfulClient {
    * Accepts Buffer or base64 string.
    */
   async uploadFile(file: Buffer | string, filename: string): Promise<{ id: number; url: string; preview_url?: string }> {
-    const data = typeof file === 'string' ? file : file.toString('base64')
-    
+    const isUrl = typeof file === 'string' && (file.startsWith('http://') || file.startsWith('https://'))
+    const body = isUrl
+      ? { url: file, filename }
+      : { data: typeof file === 'string' ? file : file.toString('base64'), filename }
+
     const result = await this.request<{ id: number; url?: string; preview_url?: string }>('/files', {
       method: 'POST',
-      body: JSON.stringify({
-        filename,
-        data,
-      }),
+      body: JSON.stringify(body),
     })
 
-    // Printful sometimes only returns preview_url for base64 uploads
     if (!result.url && result.preview_url) {
       result.url = result.preview_url
     }
