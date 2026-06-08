@@ -6,8 +6,6 @@ import { getPrintfulClient, getPrintAreaForPlacement, transformToPosition } from
 export const runtime = 'nodejs'
 
 const printfilesCache = new Map<number, any>()
-// Cache Printful CDN file URLs by logoPath so we don't re-upload on every generate
-const printfulFileCache = new Map<string, string>()
 
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req)
@@ -20,7 +18,7 @@ export async function POST(req: NextRequest) {
   let variantIds: number[]
   let placement: string
   let transform: any
-  let fileUrl: string
+  let imageData: string  // base64 — passed directly to Printful, no URL needed
 
   const contentType = req.headers.get('content-type') || ''
 
@@ -32,9 +30,8 @@ export async function POST(req: NextRequest) {
       placement = formData.get('placement') as string
       transform = JSON.parse(formData.get('transform') as string)
       const logoFile = formData.get('logo') as File
-      const logoBuffer = Buffer.from(await logoFile.arrayBuffer())
-      const fileResult = await client.uploadFile(logoBuffer, 'logo.png')
-      fileUrl = fileResult.url || fileResult.preview_url!
+      const buf = Buffer.from(await logoFile.arrayBuffer())
+      imageData = buf.toString('base64')
     } else {
       const body = await req.json()
       productId = body.productId
@@ -47,18 +44,27 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'logoPath is required' }, { status: 400 })
       }
 
-      // Create a long-lived signed URL (Printful needs to fetch from it during task processing)
+      // Fetch from Supabase on our server (this works), encode as base64
+      // so Printful never needs to reach Supabase directly
       const { data: signedData, error: signedError } = await admin.storage
         .from('cqs-assets')
-        .createSignedUrl(logoPath, 3600)
+        .createSignedUrl(logoPath, 300)
 
       if (signedError || !signedData?.signedUrl) {
         console.error('Signed URL error:', signedError)
-        return NextResponse.json({ error: 'Could not sign logo URL' }, { status: 400 })
+        return NextResponse.json({ error: 'Could not access logo' }, { status: 400 })
       }
 
-      fileUrl = signedData.signedUrl
-      console.log('Logo signed URL created for product', productId)
+      const logoRes = await fetch(signedData.signedUrl)
+      if (!logoRes.ok) {
+        return NextResponse.json({ error: `Logo fetch failed: ${logoRes.status}` }, { status: 400 })
+      }
+      const logoBuf = Buffer.from(await logoRes.arrayBuffer())
+      if (logoBuf.length === 0) {
+        return NextResponse.json({ error: 'Logo file is empty' }, { status: 400 })
+      }
+      imageData = logoBuf.toString('base64')
+      console.log(`Logo fetched: ${logoBuf.length} bytes for product ${productId}`)
     }
 
     let printfiles = printfilesCache.get(productId)
@@ -70,7 +76,7 @@ export async function POST(req: NextRequest) {
     // Validate placement against what this product actually supports
     const availablePlacements = Object.keys(printfiles.available_placements || {})
     if (availablePlacements.length > 0 && !availablePlacements.includes(placement)) {
-      console.log(`Placement '${placement}' not valid, available: ${availablePlacements.join(', ')}. Using '${availablePlacements[0]}'`)
+      console.log(`Placement '${placement}' not valid, using '${availablePlacements[0]}'`)
       placement = availablePlacements[0]
     }
 
@@ -78,7 +84,6 @@ export async function POST(req: NextRequest) {
       ?? { width: 1800, height: 1800 }
     const position = transformToPosition(transform, area)
 
-    // Printful recommends keeping variant list short for mockup tasks
     const taskVariantIds = variantIds.slice(0, 5)
     console.log('Creating mockup task:', { productId, variantIds: taskVariantIds, placement, position })
 
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
       product_id: productId,
       variant_ids: taskVariantIds,
       placement,
-      image_url: fileUrl,
+      image_data: imageData,  // base64 direct — Printful never touches Supabase
       position,
     })
 
