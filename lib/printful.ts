@@ -179,24 +179,16 @@ class PrintfulClient {
     product_id: number
     variant_ids: number[]
     placement: string
-    image_url?: string
-    image_data?: string  // base64-encoded image (preferred — avoids URL accessibility issues)
+    image_url: string
     position: PrintfulPosition
     format?: 'jpg' | 'png'
   }): Promise<string> {
-    const { product_id, variant_ids, placement, image_url, image_data, position, format = 'jpg' } = params
-
-    const fileEntry: Record<string, any> = { placement, position }
-    if (image_data) {
-      fileEntry.data = image_data
-    } else {
-      fileEntry.url = image_url
-    }
+    const { product_id, variant_ids, placement, image_url, position, format = 'jpg' } = params
 
     const body = {
       variant_ids,
       format,
-      files: [fileEntry],
+      files: [{ placement, url: image_url, position }],
     }
 
     const result = await this.request<{ task_key: string }>(

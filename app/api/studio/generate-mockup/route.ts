@@ -85,6 +85,14 @@ export async function POST(req: NextRequest) {
       ?? { width: 1800, height: 1800 }
     const position = transformToPosition(transform, area)
 
+    // Upload to Printful file library using base64 — returns a Printful CDN URL
+    const fileResult = await client.uploadFile(imageData, 'logo.png')
+    const fileUrl = fileResult.url || fileResult.preview_url
+    if (!fileUrl) {
+      return NextResponse.json({ error: 'Printful file upload returned no URL' }, { status: 500 })
+    }
+    console.log('Logo uploaded to Printful CDN:', fileUrl.substring(0, 60))
+
     const taskVariantIds = variantIds.slice(0, 5)
     console.log('Creating mockup task:', { productId, variantIds: taskVariantIds, placement, position })
 
@@ -92,7 +100,7 @@ export async function POST(req: NextRequest) {
       product_id: productId,
       variant_ids: taskVariantIds,
       placement,
-      image_data: imageData,  // base64 direct — Printful never touches Supabase
+      image_url: fileUrl,
       position,
     })
 
