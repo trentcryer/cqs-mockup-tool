@@ -47,31 +47,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'logoPath is required' }, { status: 400 })
       }
 
-      // Check cache first — avoid re-uploading to Printful on every generate
-      const cached = printfulFileCache.get(logoPath)
-      if (cached) {
-        fileUrl = cached
-      } else {
-        // Get a signed URL so Printful can download the logo from Supabase
-        const { data: signedData, error: signedError } = await admin.storage
-          .from('cqs-assets')
-          .createSignedUrl(logoPath, 600)
+      // Create a long-lived signed URL (Printful needs to fetch from it during task processing)
+      const { data: signedData, error: signedError } = await admin.storage
+        .from('cqs-assets')
+        .createSignedUrl(logoPath, 3600)
 
-        if (signedError || !signedData?.signedUrl) {
-          console.error('Signed URL error:', signedError)
-          return NextResponse.json({ error: 'Could not sign logo URL' }, { status: 400 })
-        }
-
-        // Upload to Printful file library — they download from Supabase and give back a CDN URL
-        console.log('Uploading logo to Printful:', logoPath)
-        const fileResult = await client.uploadFile(signedData.signedUrl, 'logo.png')
-        fileUrl = fileResult.url || fileResult.preview_url!
-        if (!fileUrl) {
-          return NextResponse.json({ error: 'Printful file upload returned no URL' }, { status: 500 })
-        }
-        printfulFileCache.set(logoPath, fileUrl)
-        console.log('Logo uploaded to Printful:', fileUrl)
+      if (signedError || !signedData?.signedUrl) {
+        console.error('Signed URL error:', signedError)
+        return NextResponse.json({ error: 'Could not sign logo URL' }, { status: 400 })
       }
+
+      fileUrl = signedData.signedUrl
+      console.log('Logo signed URL created for product', productId)
     }
 
     let printfiles = printfilesCache.get(productId)
@@ -91,11 +78,13 @@ export async function POST(req: NextRequest) {
       ?? { width: 1800, height: 1800 }
     const position = transformToPosition(transform, area)
 
-    console.log('Creating mockup task:', { productId, variantIds: variantIds.slice(0, 3), placement, position })
+    // Printful recommends keeping variant list short for mockup tasks
+    const taskVariantIds = variantIds.slice(0, 5)
+    console.log('Creating mockup task:', { productId, variantIds: taskVariantIds, placement, position })
 
     const taskKey = await client.createMockupTask({
       product_id: productId,
-      variant_ids: variantIds,
+      variant_ids: taskVariantIds,
       placement,
       image_url: fileUrl,
       position,
