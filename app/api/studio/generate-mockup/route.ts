@@ -64,6 +64,13 @@ export async function POST(req: NextRequest) {
       printfilesCache.set(productId, printfiles)
     }
 
+    // Validate placement against what this product actually supports
+    const availablePlacements = Object.keys(printfiles.available_placements || {})
+    if (availablePlacements.length > 0 && !availablePlacements.includes(placement)) {
+      console.log(`Placement '${placement}' not valid for product ${productId}, available: ${availablePlacements.join(', ')}. Using '${availablePlacements[0]}'`)
+      placement = availablePlacements[0]
+    }
+
     const area = getPrintAreaForPlacement(printfiles, placement, variantIds)
       ?? { width: 1800, height: 1800 }
     const position = transformToPosition(transform, area)
