@@ -5,14 +5,12 @@ import { getPrintfulClient, getPrintAreaForPlacement, transformToPosition } from
 
 export const runtime = 'nodejs'
 
-const fileUrlCache = new Map<string, string>()
 const printfilesCache = new Map<number, any>()
 
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const contentType = req.headers.get('content-type') || ''
   const client = getPrintfulClient()
   const admin = createAdminClient()
 
@@ -20,8 +18,9 @@ export async function POST(req: NextRequest) {
   let variantIds: number[]
   let placement: string
   let transform: any
-  let logoBuffer: Buffer
-  let cacheKey: string
+  let fileUrl: string
+
+  const contentType = req.headers.get('content-type') || ''
 
   if (contentType.includes('multipart/form-data')) {
     const formData = await req.formData() as any
@@ -30,8 +29,9 @@ export async function POST(req: NextRequest) {
     placement = formData.get('placement') as string
     transform = JSON.parse(formData.get('transform') as string)
     const logoFile = formData.get('logo') as File
-    logoBuffer = Buffer.from(await logoFile.arrayBuffer())
-    cacheKey = `user:${user.id}:${logoFile.name}:${logoFile.size}`
+    const logoBuffer = Buffer.from(await logoFile.arrayBuffer())
+    const fileResult = await client.uploadFile(logoBuffer, 'logo.png')
+    fileUrl = fileResult.url || fileResult.preview_url!
   } else {
     const body = await req.json()
     productId = body.productId
@@ -40,25 +40,24 @@ export async function POST(req: NextRequest) {
     transform = body.transform
     const logoPath: string = body.logoPath
 
-    const { data: signedData } = await admin.storage
+    if (!logoPath) {
+      return NextResponse.json({ error: 'logoPath is required' }, { status: 400 })
+    }
+
+    // Create a signed URL and pass it directly to Printful — no intermediate upload needed
+    const { data: signedData, error: signedError } = await admin.storage
       .from('cqs-assets')
-      .createSignedUrl(logoPath, 300)
-    if (!signedData?.signedUrl) {
+      .createSignedUrl(logoPath, 600)
+
+    if (signedError || !signedData?.signedUrl) {
+      console.error('Signed URL error:', signedError)
       return NextResponse.json({ error: 'Could not sign logo URL' }, { status: 400 })
     }
-    const logoRes = await fetch(signedData.signedUrl)
-    logoBuffer = Buffer.from(await logoRes.arrayBuffer())
-    cacheKey = logoPath
+
+    fileUrl = signedData.signedUrl
   }
 
   try {
-    let fileUrl = fileUrlCache.get(cacheKey)
-    if (!fileUrl) {
-      const fileResult = await client.uploadFile(logoBuffer, 'logo.png')
-      fileUrl = fileResult.url || fileResult.preview_url!
-      fileUrlCache.set(cacheKey, fileUrl)
-    }
-
     let printfiles = printfilesCache.get(productId)
     if (!printfiles) {
       printfiles = await client.getPrintfiles(productId)
@@ -68,6 +67,8 @@ export async function POST(req: NextRequest) {
     const area = getPrintAreaForPlacement(printfiles, placement, variantIds)
       ?? { width: 1800, height: 1800 }
     const position = transformToPosition(transform, area)
+
+    console.log('Creating mockup task:', { productId, variantIds, placement, fileUrl: fileUrl.substring(0, 80) })
 
     const taskKey = await client.createMockupTask({
       product_id: productId,
