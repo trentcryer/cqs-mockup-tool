@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { isAdminUser } from '@/lib/api-auth'
 import { getPrintfulClient } from '@/lib/printful'
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const trentEmail = process.env.TRENT_EMAIL?.toLowerCase()
-  if (!user || !trentEmail || user.email?.toLowerCase() !== trentEmail) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!await isAdminUser(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const productId = parseInt(req.nextUrl.searchParams.get('productId') || '')
   const variantIds = (req.nextUrl.searchParams.get('variantIds') || '')
     .split(',').map(Number).filter(Boolean)
 
-  if (!productId || !variantIds.length) {
-    return NextResponse.json({ error: 'Missing productId or variantIds' }, { status: 400 })
+  if (!productId) {
+    return NextResponse.json({ error: 'Missing productId' }, { status: 400 })
   }
 
   try {
@@ -23,17 +18,23 @@ export async function GET(req: NextRequest) {
     const raw = await client.getProduct(productId) as any
     const allVariants: any[] = raw.variants ?? []
 
-    const filtered = allVariants
-      .filter((v: any) => variantIds.includes(v.id))
-      .map((v: any) => ({
-        variantId: v.id,
-        name: v.name,
-        size: v.size || null,
-        color: v.color || null,
-        printfulCost: parseFloat(v.price || '0'),
-      }))
+    // Use loose number comparison to handle string/number ID mismatch from Printful
+    const matched = variantIds.length > 0
+      ? allVariants.filter((v: any) => variantIds.includes(Number(v.id)))
+      : []
 
-    return NextResponse.json({ variants: filtered })
+    // If no variants matched the filter (or no filter provided), fall back to all variants
+    const source = matched.length > 0 ? matched : allVariants
+
+    const variants = source.map((v: any) => ({
+      variantId: Number(v.id),
+      name: v.name || '',
+      size: v.size || null,
+      color: v.color || null,
+      printfulCost: parseFloat(v.price || '0'),
+    })).filter((v: any) => v.printfulCost > 0) // drop $0 variants (unavailable)
+
+    return NextResponse.json({ variants, fallback: matched.length === 0 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

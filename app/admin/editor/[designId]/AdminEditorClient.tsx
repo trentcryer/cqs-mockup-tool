@@ -83,7 +83,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
           <h1 className="text-2xl font-semibold tracking-tight">
             {design.quartet_name} — {design.product_title}
           </h1>
-          <div className="text-xs text-[#b8892a] mt-0.5">
+          <div className="text-xs text-[#9b8c7a] mt-0.5">
             {design.placement.replace(/_/g, ' ')} · {design.color}
           </div>
         </div>
@@ -93,7 +93,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
       <div className="grid md:grid-cols-3 gap-6">
         {/* Customer's original placement — read-only live preview */}
         <div>
-          <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-2">Customer</div>
+          <div className="eyebrow mb-2">Customer</div>
           {(() => {
             const ct = design.transform || {}
             const origNormW = ct.normWidth || 0.25
@@ -138,7 +138,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
 
         {/* Live preview — instant, no API */}
         <div>
-          <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-2">
+          <div className="eyebrow mb-2">
             Live Preview
             <span className="ml-2 text-blue-600 normal-case font-normal">● instant</span>
           </div>
@@ -181,7 +181,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
 
         {/* Printful photorealistic mockup */}
         <div>
-          <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-2">
+          <div className="eyebrow mb-2">
             Printful Mockup
             {mockups.length > 0 && (
               <span className="ml-2 text-green-700 normal-case font-normal">● rendered</span>
@@ -225,7 +225,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
             <input
               type="range" min={0} max={100} value={centerX}
               onChange={e => setCenterX(parseInt(e.target.value))}
-              className="w-full accent-[#b8892a]"
+              className="w-full accent-[#1c1412]"
             />
           </div>
           <div>
@@ -236,7 +236,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
             <input
               type="range" min={0} max={100} value={centerY}
               onChange={e => setCenterY(parseInt(e.target.value))}
-              className="w-full accent-[#b8892a]"
+              className="w-full accent-[#1c1412]"
             />
           </div>
           <div>
@@ -247,7 +247,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
             <input
               type="range" min={5} max={90} value={logoSize}
               onChange={e => setLogoSize(parseInt(e.target.value))}
-              className="w-full accent-[#b8892a]"
+              className="w-full accent-[#1c1412]"
             />
           </div>
         </div>

@@ -108,7 +108,7 @@ export default function CollectionsClient({ collections, collectionLogoUrls = {}
       <aside className="w-[28rem] shrink-0 bg-[#1c1412] rounded-xl overflow-hidden flex flex-col">
         <div className="px-4 py-3 border-b border-white/10 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-[10px] uppercase tracking-widest text-[#b8892a]">Collections</div>
+            <div className="eyebrow">Collections</div>
             <div className="text-xs text-white/40">{filteredCollections.length}{collectionSearch.trim() ? ` of ${collections.length}` : ' total'}</div>
           </div>
           <div className="relative">
@@ -118,7 +118,7 @@ export default function CollectionsClient({ collections, collectionLogoUrls = {}
               value={collectionSearch}
               onChange={e => setCollectionSearch(e.target.value)}
               placeholder="Search…"
-              className="w-full bg-white/10 text-white text-xs placeholder-white/30 rounded pl-7 pr-7 py-1.5 outline-none focus:ring-1 focus:ring-[#b8892a]/60"
+              className="w-full bg-white/10 text-white text-xs placeholder-white/30 rounded pl-7 pr-7 py-1.5 outline-none focus:ring-1 focus:ring-[#1c1412]/30"
             />
             {collectionSearch && (
               <button onClick={() => setCollectionSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">
@@ -137,7 +137,7 @@ export default function CollectionsClient({ collections, collectionLogoUrls = {}
               onClick={() => selectCollection(c.id)}
               className={`w-full text-left px-3 py-2 transition border-l-2 flex items-center gap-3 ${
                 selectedCollectionId === c.id
-                  ? 'bg-white/10 border-[#b8892a]'
+                  ? 'bg-white/10 border-white/40'
                   : 'border-transparent hover:bg-white/5'
               }`}
             >
@@ -220,7 +220,7 @@ export default function CollectionsClient({ collections, collectionLogoUrls = {}
                   <Eye size={12} /> Go Live
                 </button>
                 <button onClick={() => runAction('draft')} disabled={actionPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8892a] hover:bg-[#a07820] rounded transition disabled:opacity-50">
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1c1412] hover:opacity-80 transition disabled:opacity-50">
                   <EyeOff size={12} /> Unpublish
                 </button>
                 <button onClick={() => runAction('remove')} disabled={actionPending || selectedCollection?.type === 'smart'}
@@ -275,11 +275,11 @@ export default function CollectionsClient({ collections, collectionLogoUrls = {}
                         key={p.id}
                         onClick={() => toggleProduct(p.id)}
                         className={`relative rounded-xl border-2 overflow-hidden cursor-pointer transition select-none ${
-                          isSelected ? 'border-[#b8892a] shadow-md' : 'border-[#d4c5b0] hover:border-[#b8892a]/50'
+                          isSelected ? 'border-[#1c1412] shadow-md' : 'border-[#d4c5b0] hover:border-[#1c1412]/30'
                         }`}
                       >
                         <div className={`absolute top-2 left-2 z-10 w-5 h-5 rounded flex items-center justify-center transition ${
-                          isSelected ? 'bg-[#b8892a]' : 'bg-white/80 border border-[#d4c5b0]'
+                          isSelected ? 'bg-[#1c1412]' : 'bg-white/80 border border-[#d4c5b0]'
                         }`}>
                           {isSelected && <CheckSquare size={14} className="text-white" />}
                         </div>
@@ -299,7 +299,7 @@ export default function CollectionsClient({ collections, collectionLogoUrls = {}
                         </div>
                         <div className="p-2 bg-white">
                           <div className="text-[11px] font-medium line-clamp-2 leading-tight">{p.title}</div>
-                          {p.price && <div className="text-[10px] text-[#b8892a] mt-0.5">${p.price}</div>}
+                          {p.price && <div className="text-[10px] text-[#9b8c7a] mt-0.5">${p.price}</div>}
                         </div>
                       </div>
                     )

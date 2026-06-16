@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { X, Loader2 } from 'lucide-react'
 
 interface VariantPrice {
@@ -22,7 +23,7 @@ export interface PricingData {
 interface Props {
   design: any
   defaultKickback: number
-  approveAction: (fd: FormData) => Promise<void>
+  approveAction: (designId: string, pricingJson: string, customTitle: string, saveKickback: string) => Promise<void>
   onClose: () => void
 }
 
@@ -35,6 +36,11 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
+  const quartetName = design.profiles?.quartet_name || design.quartet_name || 'Custom Quartet'
+  const defaultTitle = `${quartetName} — ${design.product_title} (${design.color || design.placement})`
+  const [title, setTitle] = useState(defaultTitle)
 
   const [mode, setMode] = useState<'flat' | 'by_size'>('flat')
   const [markupMode, setMarkupMode] = useState<'percentage' | 'custom'>('percentage')
@@ -125,12 +131,14 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
   }
 
   function handleConfirm() {
-    const fd = new FormData()
-    fd.append('designId', design.id)
-    fd.append('pricingJson', JSON.stringify(buildPricingData()))
-    if (saveKickback) fd.append('saveKickback', kickbackPercent.toString())
-    startTransition(() => {
-      approveAction(fd)
+    startTransition(async () => {
+      await approveAction(
+        design.id,
+        JSON.stringify(buildPricingData()),
+        title.trim() || defaultTitle,
+        saveKickback ? kickbackPercent.toString() : '',
+      )
+      router.refresh()
       onClose()
     })
   }
@@ -138,14 +146,22 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+        className="bg-white shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-[#e8dcc8]">
-          <div>
-            <div className="font-semibold text-lg tracking-tight">{design.product_title}</div>
-            <div className="text-xs text-[#b8892a] mt-0.5">{design.color} · {design.placement}</div>
+          <div className="flex-1 pr-4">
+            <label className="eyebrow block mb-1">
+              Shopify Product Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="w-full font-semibold text-sm tracking-tight border border-[#e8e0d8] px-3 py-2 focus:outline-none focus:border-[#1c1412] bg-[#faf7f2]"
+            />
+            <div className="text-xs text-[#9b8c7a] mt-1.5">{design.color} · {design.placement}</div>
           </div>
           <button onClick={onClose} className="text-[#8a7660] hover:text-[#1c1412] transition mt-0.5">
             <X size={20} />
@@ -166,7 +182,7 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
             <>
               {/* Printful costs */}
               <div>
-                <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-2">Printful Fulfillment Costs</div>
+                <div className="eyebrow mb-2">Printful Fulfillment Costs</div>
                 <div className="flex flex-wrap gap-2">
                   {sizeGroups.map(({ size, cost }) => (
                     <div key={size} className="text-xs bg-[#f9f6f0] border border-[#e8dcc8] rounded-lg px-3 py-1.5">
@@ -179,7 +195,7 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
 
               {/* Pricing mode */}
               <div>
-                <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-2">Pricing Mode</div>
+                <div className="eyebrow mb-2">Pricing Mode</div>
                 <div className="flex gap-2">
                   {(['flat', 'by_size'] as const).map(m => (
                     <button key={m} onClick={() => setMode(m)}
@@ -194,7 +210,7 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
 
               {/* Markup */}
               <div>
-                <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-2">Markup</div>
+                <div className="eyebrow mb-2">Markup</div>
                 <div className="flex gap-2 mb-3">
                   {(['percentage', 'custom'] as const).map(m => (
                     <button key={m} onClick={() => setMarkupMode(m)}
@@ -214,7 +230,7 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
                     </div>
                     <input type="range" min={0} max={200} value={markupPercent}
                       onChange={e => setMarkupPercent(parseInt(e.target.value))}
-                      className="w-full accent-[#b8892a]" />
+                      className="w-full accent-[#1c1412]" />
                   </div>
                 )}
 
@@ -257,12 +273,12 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
               </div>
 
               {/* Group kickback */}
-              <div className="border border-[#e8dcc8] rounded-xl p-4 space-y-3">
+              <div className="border border-[#e8e0d8] p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs uppercase tracking-widest text-[#9b1c1c]">Group Kickback</div>
+                  <div className="eyebrow">Group Kickback</div>
                   <button
                     onClick={() => setKickbackEnabled(k => !k)}
-                    className={`relative w-10 h-5 rounded-full transition ${kickbackEnabled ? 'bg-[#b8892a]' : 'bg-[#d4c5b0]'}`}
+                    className={`relative w-10 h-5 rounded-full transition ${kickbackEnabled ? 'bg-[#1c1412]' : 'bg-[#d4c5b0]'}`}
                   >
                     <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${kickbackEnabled ? 'left-5' : 'left-0.5'}`} />
                   </button>
@@ -276,11 +292,11 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
                       </div>
                       <input type="range" min={0} max={50} value={kickbackPercent}
                         onChange={e => setKickbackPercent(parseInt(e.target.value))}
-                        className="w-full accent-[#b8892a]" />
+                        className="w-full accent-[#1c1412]" />
                     </div>
                     <label className="flex items-center gap-2 text-xs text-[#6b5f54] cursor-pointer">
                       <input type="checkbox" checked={saveKickback} onChange={e => setSaveKickback(e.target.checked)}
-                        className="accent-[#b8892a]" />
+                        className="accent-[#1c1412]" />
                       Save {kickbackPercent}% as default for this group
                     </label>
                   </>
@@ -288,8 +304,8 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
               </div>
 
               {/* Live calculator */}
-              <div className="bg-[#f9f6f0] rounded-xl p-4 border border-[#e8dcc8]">
-                <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-3">Live Breakdown</div>
+              <div className="bg-[#faf9f7] p-4 border border-[#e8e0d8]">
+                <div className="eyebrow mb-3">Live Breakdown</div>
                 {mode === 'flat' ? (
                   <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between text-[#6b5f54]">
@@ -299,7 +315,7 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
                       <span>Retail price</span><span>{fmt(flatRetail)}</span>
                     </div>
                     {kickbackEnabled && (
-                      <div className="flex justify-between text-[#b8892a]">
+                      <div className="flex justify-between text-[#9b8c7a]">
                         <span>Group kickback ({kickbackPercent}%)</span>
                         <span>− {fmt(flatKickback)}</span>
                       </div>
@@ -322,7 +338,7 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
                           <span className="w-10 font-medium">{size}</span>
                           <span className="text-[#8a7660] w-14">cost {fmt(cost)}</span>
                           <span className="text-[#6b5f54] w-16">→ {fmt(retail)}</span>
-                          {kickbackEnabled && <span className="text-[#b8892a] w-14">−{fmt(kickback)}</span>}
+                          {kickbackEnabled && <span className="text-[#9b8c7a] w-14">−{fmt(kickback)}</span>}
                           <span className={`font-semibold flex-1 text-right ${cut >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                             {fmt(cut)}
                           </span>
@@ -339,13 +355,13 @@ export default function PricingModal({ design, defaultKickback, approveAction, o
         {/* Footer */}
         <div className="flex gap-3 px-5 py-4 border-t border-[#e8dcc8]">
           <button onClick={onClose}
-            className="flex-1 py-2.5 text-sm border border-[#d4c5b0] rounded-xl hover:bg-[#f9f6f0] transition">
+            className="flex-1 py-2.5 text-sm border border-[#e8e0d8] hover:bg-[#f7f5f2] transition">
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={isPending || loading || !!error}
-            className="flex-1 py-2.5 text-sm bg-[#9b1c1c] text-white rounded-xl hover:bg-[#7a1616] disabled:opacity-40 transition font-medium"
+            className="flex-1 py-2.5 text-sm bg-[#1c1412] text-white disabled:opacity-40 transition font-medium"
           >
             {isPending ? 'Publishing…' : 'Confirm & Publish'}
           </button>

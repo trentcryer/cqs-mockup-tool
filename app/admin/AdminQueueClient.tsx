@@ -13,10 +13,10 @@ interface Props {
   designs: any[]
   quartets: any[]
   collections: any[]
-  assignAction: (fd: FormData) => Promise<void>
-  createAction: (fd: FormData) => Promise<void>
+  assignAction: (userId: string, collectionId: number, collectionTitle: string) => Promise<void>
+  createAction: (userId: string, collectionTitle: string) => Promise<void>
   generateAction: (fd: FormData) => Promise<void>
-  approveAction: (fd: FormData) => Promise<void>
+  approveAction: (designId: string, pricingJson: string, customTitle: string, saveKickback: string) => Promise<void>
   updateStatusAction: (fd: FormData) => Promise<void>
 }
 
@@ -34,7 +34,7 @@ function DesignCard({ d, defaultKickback, generateAction, approveAction, updateS
   d: any
   defaultKickback: number
   generateAction: (fd: FormData) => Promise<void>
-  approveAction: (fd: FormData) => Promise<void>
+  approveAction: (designId: string, pricingJson: string, customTitle: string, saveKickback: string) => Promise<void>
   updateStatusAction: (fd: FormData) => Promise<void>
 }) {
   const [showPricing, setShowPricing] = useState(false)
@@ -60,7 +60,12 @@ function DesignCard({ d, defaultKickback, generateAction, approveAction, updateS
         <div className="flex items-start justify-between gap-2 mb-1">
           <div>
             <div className="font-medium text-sm">{d.product_title}</div>
-            <div className="text-xs text-[#b8892a]">{d.color} · {d.placement}</div>
+            <div className="text-xs text-[#9b8c7a]">
+              {d.color_variant_map && Object.keys(d.color_variant_map).length > 1
+                ? Object.keys(d.color_variant_map).join(', ')
+                : d.color}
+              {' · '}{d.placement}
+            </div>
           </div>
           <span className={statusBadge(d.status)}>{d.status.replace(/_/g, ' ')}</span>
         </div>
@@ -80,7 +85,7 @@ function DesignCard({ d, defaultKickback, generateAction, approveAction, updateS
         {d.profiles?.shopify_collection_id && (
           <Link
             href={`/admin/collections?id=${d.profiles.shopify_collection_id}`}
-            className="text-xs text-center px-3 py-1.5 border border-[#b8892a] text-[#b8892a] rounded hover:bg-[#f9f6f0] transition"
+            className="text-xs text-center px-3 py-1.5 border border-[#1c1412] text-[#1c1412] rounded hover:bg-[#f9f6f0] transition"
           >
             Go to Collection
           </Link>
@@ -99,7 +104,7 @@ function DesignCard({ d, defaultKickback, generateAction, approveAction, updateS
             onClick={() => setShowPricing(true)}
             disabled={!firstMockup}
             title={!firstMockup ? 'Generate a mockup first' : ''}
-            className="w-full text-xs px-3 py-1.5 bg-[#9b1c1c] text-white rounded disabled:opacity-40 hover:bg-[#7a1616] transition"
+            className="w-full text-xs px-3 py-1.5 bg-[#1c1412] text-white disabled:opacity-40 transition"
           >
             Approve &amp; Publish
           </button>
@@ -113,7 +118,7 @@ function DesignCard({ d, defaultKickback, generateAction, approveAction, updateS
         )}
         {d.shopify_product_url && (
           <a href={d.shopify_product_url} target="_blank" rel="noreferrer"
-            className="text-[10px] text-[#b8892a] underline text-center">
+            className="text-[10px] text-[#9b8c7a] underline text-center">
             View in Shopify →
           </a>
         )}
@@ -194,7 +199,7 @@ export default function AdminQueueClient({
       {/* ── Shopify Collection — separate section above the queue ── */}
       {activeQuartet && (
         <div className="card p-5">
-          <div className="text-xs uppercase tracking-widest text-[#9b1c1c] mb-3">
+          <div className="eyebrow mb-3">
             Shopify Collection
             <span className="ml-2 normal-case font-normal text-[#6b5f54]">— {activeQuartet.quartet_name}</span>
           </div>
@@ -213,16 +218,16 @@ export default function AdminQueueClient({
     <div className="flex gap-5 min-h-[600px]">
 
       {/* ── Sidebar ── */}
-      <aside className="w-56 shrink-0 bg-[#1c1412] flex flex-col rounded-xl overflow-hidden border border-[#1c1412]">
+      <aside className="w-56 shrink-0 bg-[#1c1412] flex flex-col overflow-hidden border border-[#1c1412]">
 
         {/* Sidebar header + toggle */}
         <div className="px-4 pt-3 pb-2 border-b border-white/10">
-          <div className="text-[10px] uppercase tracking-widest text-[#b8892a] mb-2">Review Queue</div>
+          <div className="eyebrow mb-2">Review Queue</div>
           <div className="flex rounded-md overflow-hidden border border-white/20 text-[10px]">
             <button
               onClick={() => setSidebarMode('group')}
               className={`flex-1 flex items-center justify-center gap-1 py-1.5 transition ${
-                sidebarMode === 'group' ? 'bg-[#b8892a] text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+                sidebarMode === 'group' ? 'bg-[#1c1412] text-white' : 'text-white/60 hover:text-white hover:bg-white/8'
               }`}
             >
               <Users size={10} /> By Group
@@ -230,7 +235,7 @@ export default function AdminQueueClient({
             <button
               onClick={() => setSidebarMode('date')}
               className={`flex-1 flex items-center justify-center gap-1 py-1.5 border-l border-white/20 transition ${
-                sidebarMode === 'date' ? 'bg-[#b8892a] text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+                sidebarMode === 'date' ? 'bg-[#1c1412] text-white' : 'text-white/60 hover:text-white hover:bg-white/8'
               }`}
             >
               <Clock size={10} /> By Date
@@ -256,13 +261,13 @@ export default function AdminQueueClient({
               onClick={() => setSelectedGroupId(g.userId)}
               className={`w-full text-left px-4 py-3 transition border-l-2 ${
                 selectedGroupId === g.userId
-                  ? 'bg-white/10 border-[#b8892a]'
+                  ? 'bg-white/10 border-[#1c1412]'
                   : 'border-transparent hover:bg-white/5'
               }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm text-white font-medium truncate">{g.name}</div>
-                <span className="shrink-0 text-[10px] bg-[#9b1c1c] text-white rounded-full px-1.5 py-0.5">
+                <span className="shrink-0 text-[10px] bg-[#1c1412] text-white px-1.5 py-0.5">
                   {g.designs.length}
                 </span>
               </div>
@@ -279,7 +284,7 @@ export default function AdminQueueClient({
               onClick={() => setSelectedDesignId(d.id)}
               className={`w-full text-left px-4 py-2.5 transition border-l-2 ${
                 selectedDesignId === d.id
-                  ? 'bg-white/10 border-[#b8892a]'
+                  ? 'bg-white/10 border-[#1c1412]'
                   : 'border-transparent hover:bg-white/5'
               }`}
             >
@@ -296,7 +301,7 @@ export default function AdminQueueClient({
       </aside>
 
       {/* ── Main content ── */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#faf7f2] rounded-xl overflow-hidden border border-[#d4c5b0]">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#faf9f7] overflow-hidden border border-[#e8e0d8]">
 
         {/* Toolbar */}
         <div className="flex items-center px-5 py-3 border-b border-[#e8dcc8] bg-white min-h-[49px]">
@@ -304,7 +309,7 @@ export default function AdminQueueClient({
             <div className="text-sm font-medium text-[#1c1412]">
               {selectedGroup.name}
               <span className="text-xs text-[#8a7660] font-normal ml-2">{selectedGroup.email}</span>
-              <span className="text-xs text-[#b8892a] ml-2">{selectedGroup.designs.length} pending</span>
+              <span className="text-xs text-[#9b8c7a] ml-2">{selectedGroup.designs.length} pending</span>
             </div>
           )}
           {sidebarMode === 'date' && selectedDesign && (

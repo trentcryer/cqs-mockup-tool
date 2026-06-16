@@ -6,10 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
+type GroupType = 'quartet' | 'chorus'
+
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [quartetName, setQuartetName] = useState('')
+  const [groupName, setGroupName] = useState('')
+  const [groupType, setGroupType] = useState<GroupType>('quartet')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -18,12 +21,14 @@ export default function SignupPage() {
     e.preventDefault()
     setLoading(true)
 
+    const name = groupName.trim() || `My ${groupType === 'chorus' ? 'Chorus' : 'Quartet'}`
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: { quartet_name: quartetName || 'My Quartet' },
+        data: { quartet_name: name, group_type: groupType },
       },
     })
 
@@ -31,78 +36,104 @@ export default function SignupPage() {
       toast.error(error.message)
     } else {
       toast.success('Account created! Check your email to confirm.', { duration: 6000 })
-      // Supabase will create profile via trigger
       router.push('/login?confirmed=true')
     }
     setLoading(false)
   }
 
+  const label = groupType === 'chorus' ? 'Chorus' : 'Quartet'
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-[#f7f3ee]">
+    <div className="min-h-screen flex items-center justify-center px-6 bg-[#f7f5f2]">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-[#1c1412]">
-            <span className="font-semibold text-2xl tracking-tight">CQS Mockup Studio</span>
+        <div className="text-center mb-10">
+          <div className="eyebrow mb-3">Custom Quartet Stuff</div>
+          <Link href="/" className="inline-block">
+            <span className="font-bold text-3xl tracking-tight text-[#1c1412]" style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}>CQS Studio</span>
           </Link>
-          <p className="text-[#6b5f54] mt-1 text-sm tracking-widest">CUSTOM QUARTET STUFF</p>
         </div>
 
         <div className="card p-8">
-          <h1 className="text-2xl font-semibold mb-1 tracking-tight">Create your studio</h1>
-          <p className="text-sm text-[#6b5f54] mb-6">Private workspace for your quartet or chorus</p>
+          <h1 className="text-xl font-bold tracking-tight text-[#1c1412] mb-1">Create your studio</h1>
+          <p className="text-[13px] text-[#9b8c7a] mb-7">Private workspace for your group</p>
 
           <form onSubmit={handleSignup} className="space-y-4">
+            {/* Group type selector */}
             <div>
-              <label className="block text-xs uppercase tracking-widest text-[#9b1c1c] mb-1.5">Quartet / Chorus Name</label>
+              <label className="eyebrow block mb-2">We are a…</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['quartet', 'chorus'] as GroupType[]).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setGroupType(type)}
+                    className={`py-3 border-2 font-medium capitalize transition-all text-[13px] ${
+                      groupType === type
+                        ? 'border-[#1c1412] bg-[#1c1412] text-white'
+                        : 'border-[#e8e0d8] text-[#9b8c7a] hover:border-[#1c1412] bg-white'
+                    }`}
+                    style={{ borderRadius: 4 }}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="eyebrow block mb-1.5">{label} Name</label>
               <input
                 type="text"
-                value={quartetName}
-                onChange={(e) => setQuartetName(e.target.value)}
-                className="w-full border border-[#d4c5b0] rounded-lg px-4 py-3 focus:outline-none focus:border-[#b8892a]"
-                placeholder="The Harmony Kings"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full border border-[#e8e0d8] px-4 py-3 text-[14px] focus:outline-none focus:border-[#1c1412] bg-[#faf9f7]"
+                style={{ borderRadius: 4 }}
+                placeholder={groupType === 'chorus' ? 'The Harmony Chorus' : 'The Harmony Kings'}
               />
             </div>
 
             <div>
-              <label className="block text-xs uppercase tracking-widest text-[#9b1c1c] mb-1.5">Email</label>
+              <label className="eyebrow block mb-1.5">Email</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-[#d4c5b0] rounded-lg px-4 py-3 focus:outline-none focus:border-[#b8892a]"
-                placeholder="contact@quartet.com"
+                className="w-full border border-[#e8e0d8] px-4 py-3 text-[14px] focus:outline-none focus:border-[#1c1412] bg-[#faf9f7]"
+                style={{ borderRadius: 4 }}
+                placeholder="contact@yourgroup.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs uppercase tracking-widest text-[#9b1c1c] mb-1.5">Password (min 6 chars)</label>
+              <label className="eyebrow block mb-1.5">Password (min 6 chars)</label>
               <input
                 type="password"
                 required
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-[#d4c5b0] rounded-lg px-4 py-3 focus:outline-none focus:border-[#b8892a]"
+                className="w-full border border-[#e8e0d8] px-4 py-3 text-[14px] focus:outline-none focus:border-[#1c1412] bg-[#faf9f7]"
+                style={{ borderRadius: 4 }}
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full py-3.5 rounded-xl disabled:opacity-60 mt-2"
+              className="btn-primary w-full py-3.5 disabled:opacity-60 mt-2"
             >
-              {loading ? 'Creating studio…' : 'Create my private studio'}
+              {loading ? 'Creating studio…' : `Create my ${label} studio`}
             </button>
           </form>
 
-          <p className="text-[11px] text-center mt-4 text-[#8a7660]">
-            You’ll receive a confirmation email. Magic links also supported.
+          <p className="text-[11px] text-center mt-4 text-[#9b8c7a]">
+            You'll receive a confirmation email. Magic links also supported.
           </p>
         </div>
 
-        <p className="text-center text-sm mt-6 text-[#6b5f54]">
-          Already have access? <Link href="/login" className="text-[#9b1c1c] underline">Sign in</Link>
+        <p className="text-center text-[13px] mt-6 text-[#9b8c7a]">
+          Already have access? <Link href="/login" className="text-[#1c1412] underline underline-offset-2">Sign in</Link>
         </p>
       </div>
     </div>

@@ -66,7 +66,7 @@ export default async function CollectionsPage() {
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <div className="uppercase tracking-[2px] text-xs text-[#9b1c1c]">CQS Internal</div>
+          <div className="eyebrow">CQS Internal</div>
           <h1 className="text-3xl font-semibold tracking-tight">Collection Manager</h1>
           <p className="text-sm text-[#6b5f54] mt-1">Browse, publish, unpublish, and remove products from any Shopify collection.</p>
         </div>

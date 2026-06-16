@@ -24,14 +24,18 @@ export async function POST(req: NextRequest) {
   try {
     if (!await isAdminUser(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { designId, action, notes, shopify_collection_id, shopify_collection_title, shopify_collection_type } = await req.json()
+    const { designId, action, notes, shopify_collection_id, shopify_collection_title, shopify_collection_type, retail_price } = await req.json()
 
     if (!designId || !action) return NextResponse.json({ error: 'Missing designId or action' }, { status: 400 })
 
     const admin = createAdminClient()
 
     if (action === 'approve') {
-      await (admin as any).from('designs').update({ status: 'approved', notes: notes || null }).eq('id', designId)
+      await (admin as any).from('designs').update({
+        status: 'approved',
+        notes: notes || null,
+        ...(retail_price != null ? { retail_price: parseFloat(retail_price) } : {}),
+      }).eq('id', designId)
 
       if (shopify_collection_id) {
         const { data: design } = await (admin as any)

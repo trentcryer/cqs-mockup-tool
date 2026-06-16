@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CQS Mockup Studio • Custom Quartet Stuff",
-  description: "Professional mockup portal for barbershop quartets and choruses. Design custom merch with Printful + Shopify.",
+  description: "Professional mockup portal for barbershop quartets and choruses. Powered By CQS: Because custom needed to feel easier.",
   icons: {
     icon: "/cqs-logo.png",
   },

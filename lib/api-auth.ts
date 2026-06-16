@@ -16,6 +16,8 @@ export async function getAuthUser(req: NextRequest) {
 
 export async function isAdminUser(req: NextRequest) {
   const user = await getAuthUser(req)
-  const trentEmail = process.env.TRENT_EMAIL?.toLowerCase()
-  return user && trentEmail && user.email?.toLowerCase() === trentEmail
+  if (!user) return false
+  const admin = createAdminClient()
+  const { data } = await admin.from('profiles').select('is_admin').eq('id', user.id).single() as { data: any }
+  return !!data?.is_admin
 }

@@ -178,7 +178,7 @@ export default function SalesReport({ collection }: Props) {
           <div className="ml-auto flex items-center gap-2 text-xs text-[#6b5f54] shrink-0">
             <span>Customer view</span>
             <button onClick={() => setCustomerView(v => !v)}
-              className={`relative w-8 h-[18px] rounded-full transition ${customerView ? 'bg-[#b8892a]' : 'bg-[#d4c5b0]'}`}>
+              className={`relative w-8 h-[18px] rounded-full transition ${customerView ? 'bg-[#1c1412]' : 'bg-[#d4c5b0]'}`}>
               <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-all ${customerView ? 'left-[18px]' : 'left-0.5'}`} />
             </button>
           </div>
@@ -208,10 +208,10 @@ export default function SalesReport({ collection }: Props) {
         {preset === 'custom' && (
           <div className="flex items-center gap-2">
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              className="text-xs border border-[#d4c5b0] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-[#b8892a]/60" />
+              className="text-xs border border-[#e8e0d8] px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-[#1c1412]/30" />
             <span className="text-xs text-[#8a7660]">to</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              className="text-xs border border-[#d4c5b0] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-[#b8892a]/60" />
+              className="text-xs border border-[#e8e0d8] px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-[#1c1412]/30" />
             <button onClick={handleCustomLoad} disabled={!customStart || !customEnd}
               className="px-3 py-1.5 bg-[#1c1412] text-white text-xs rounded-lg disabled:opacity-40 transition">
               Load
@@ -236,7 +236,7 @@ export default function SalesReport({ collection }: Props) {
             {/* Summary cards */}
             <div className={`grid gap-4 ${customerView ? 'grid-cols-2' : 'grid-cols-3'}`}>
               <div className="bg-white rounded-xl border border-[#e8dcc8] px-4 py-3">
-                <div className="text-[10px] uppercase tracking-widest text-[#9b1c1c] mb-1">Units Sold</div>
+                <div className="eyebrow mb-1">Units Sold</div>
                 <div className="text-2xl font-semibold tracking-tight">{(displayUnits ?? 0).toLocaleString()}</div>
                 {!customerView && hasDiscounts && couponFilter === 'all' && (
                   <div className="text-[10px] text-[#8a7660] mt-0.5">
@@ -246,7 +246,7 @@ export default function SalesReport({ collection }: Props) {
               </div>
               {!customerView && (
                 <div className="bg-white rounded-xl border border-[#e8dcc8] px-4 py-3">
-                  <div className="text-[10px] uppercase tracking-widest text-[#9b1c1c] mb-1">Revenue</div>
+                  <div className="eyebrow mb-1">Revenue</div>
                   <div className="text-2xl font-semibold tracking-tight">{fmt(displayRevenue ?? 0)}</div>
                   {hasDiscounts && couponFilter === 'all' && (
                     <div className="text-[10px] text-[#8a7660] mt-0.5">
@@ -256,7 +256,7 @@ export default function SalesReport({ collection }: Props) {
                 </div>
               )}
               <div className="bg-white rounded-xl border border-[#e8dcc8] px-4 py-3">
-                <div className="text-[10px] uppercase tracking-widest text-[#9b1c1c] mb-1">Products with Sales</div>
+                <div className="eyebrow mb-1">Products with Sales</div>
                 <div className="text-2xl font-semibold tracking-tight">
                   {soldCount}
                   <span className="text-sm font-normal text-[#8a7660] ml-1">of {data.products.length}</span>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { sendPushToUser, sendPushToMany } from '@/lib/push'
+import { getPrintfulClient, getPrintAreaForPlacement, transformToPosition } from '@/lib/printful'
 
 // Verify the webhook came from Shopify
 function verifyWebhook(body: string, hmacHeader: string): boolean {
@@ -77,9 +78,123 @@ export async function POST(req: NextRequest) {
         )
       }
     }
+
+    // Create a Printful draft order for any CQS-designed products in this order.
+    // Only acts on line items whose Shopify product ID matches a design in Supabase
+    // with a stored shopify_variant_to_printful map. All other line items (pre-existing
+    // Printful-connected products) are auto-fulfilled by Printful's Shopify integration.
+    await createPrintfulDraftOrder(order, admin).catch((err: any) => {
+      console.error('Printful draft order failed:', err?.message)
+    })
   } catch (e: any) {
     console.error('Order webhook error:', e.message)
   }
 
   return new NextResponse('OK')
+}
+
+async function createPrintfulDraftOrder(order: any, admin: ReturnType<typeof createAdminClient>) {
+  const shipping = order.shipping_address ?? order.billing_address
+  if (!shipping) return
+
+  // Collect all CQS line items that have a stored variant map
+  const cqsItems: Array<{
+    design: any
+    pfVariantId: number
+    quantity: number
+    price: string
+  }> = []
+
+  for (const lineItem of (order.line_items ?? [])) {
+    if (!lineItem.product_id || !lineItem.variant_id) continue
+
+    const { data: design } = await (admin as any)
+      .from('designs')
+      .select('id, product_id, placement, transform, logo_path, shopify_variant_to_printful')
+      .eq('shopify_product_id', lineItem.product_id)
+      .not('shopify_variant_to_printful', 'is', null)
+      .maybeSingle()
+
+    if (!design?.shopify_variant_to_printful) continue
+
+    const pfVariantId = design.shopify_variant_to_printful[String(lineItem.variant_id)]
+    if (!pfVariantId) continue
+
+    cqsItems.push({
+      design,
+      pfVariantId,
+      quantity: lineItem.quantity ?? 1,
+      price: lineItem.price ?? '35.00',
+    })
+  }
+
+  if (cqsItems.length === 0) return
+
+  const pfClient = getPrintfulClient()
+
+  // Upload logos to Printful file library (deduplicated by logo_path)
+  const logoUrlCache = new Map<string, string>()
+  async function getLogoUrl(logoPath: string): Promise<string | null> {
+    if (logoUrlCache.has(logoPath)) return logoUrlCache.get(logoPath)!
+    const { data: signed } = await (admin as any).storage
+      .from('cqs-assets')
+      .createSignedUrl(logoPath, 600)
+    if (!signed?.signedUrl) return null
+    const res = await fetch(signed.signedUrl)
+    const buf = Buffer.from(await res.arrayBuffer())
+    const pfFile = await pfClient.uploadFile(buf, 'logo.png')
+    logoUrlCache.set(logoPath, pfFile.url)
+    return pfFile.url
+  }
+
+  // Build Printful order items
+  const orderItems: Array<{
+    variantId: number
+    quantity: number
+    retailPrice: string
+    files: Array<{ placement: string; url: string; position: any }>
+  }> = []
+
+  for (const { design, pfVariantId, quantity, price } of cqsItems) {
+    const logoUrl = await getLogoUrl(design.logo_path)
+    if (!logoUrl) continue
+
+    const printfiles = await pfClient.getPrintfiles(design.product_id)
+    const area = getPrintAreaForPlacement(printfiles, design.placement, [pfVariantId])
+      ?? { width: 1800, height: 1800 }
+    const position = transformToPosition(design.transform, area)
+
+    orderItems.push({
+      variantId: pfVariantId,
+      quantity,
+      retailPrice: price,
+      files: [{ placement: design.placement, url: logoUrl, position }],
+    })
+  }
+
+  if (orderItems.length === 0) return
+
+  const name = [
+    shipping.first_name,
+    shipping.last_name,
+  ].filter(Boolean).join(' ') || shipping.name || 'Customer'
+
+  // POST /orders — does NOT call /confirm, so it stays as a draft in Printful
+  // for manual review before production. Switch to auto-confirm later by calling
+  // pfClient.confirmOrder(result.id) immediately after this.
+  await pfClient.createDraftOrder({
+    externalId: String(order.id),
+    recipient: {
+      name,
+      address1: shipping.address1,
+      address2: shipping.address2 || undefined,
+      city: shipping.city,
+      state_code: shipping.province_code,
+      country_code: shipping.country_code,
+      zip: shipping.zip,
+      email: order.email || undefined,
+      phone: shipping.phone || undefined,
+    },
+    items: orderItems,
+  })
 }

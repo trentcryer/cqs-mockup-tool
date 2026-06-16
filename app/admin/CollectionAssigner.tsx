@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { ShopifyCollection } from '@/types/supabase'
 
 interface Props {
@@ -9,8 +10,8 @@ interface Props {
   currentCollectionId: number | null
   currentCollectionTitle: string | null
   collections: ShopifyCollection[]
-  assignAction: (formData: FormData) => Promise<void>
-  createAction: (formData: FormData) => Promise<void>
+  assignAction: (userId: string, collectionId: number, collectionTitle: string) => Promise<void>
+  createAction: (userId: string, collectionTitle: string) => Promise<void>
 }
 
 export default function CollectionAssigner({
@@ -24,6 +25,25 @@ export default function CollectionAssigner({
 }: Props) {
   const [selected, setSelected] = useState<string>(currentCollectionId?.toString() ?? '')
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
+  function handleAssign(e: React.FormEvent) {
+    e.preventDefault()
+    const col = collections.find(c => c.id.toString() === selected)
+    if (!col) return
+    startTransition(async () => {
+      await assignAction(userId, col.id, col.title)
+      router.refresh()
+    })
+  }
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    startTransition(async () => {
+      await createAction(userId, quartetName)
+      router.refresh()
+    })
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -40,15 +60,7 @@ export default function CollectionAssigner({
       </select>
 
       {/* Assign existing */}
-      <form
-        action={fd => {
-          fd.set('userId', userId)
-          fd.set('collectionId', selected)
-          const col = collections.find(c => c.id.toString() === selected)
-          fd.set('collectionTitle', col?.title ?? '')
-          startTransition(() => assignAction(fd))
-        }}
-      >
+      <form onSubmit={handleAssign}>
         <button
           type="submit"
           disabled={!selected || isPending}
@@ -59,17 +71,11 @@ export default function CollectionAssigner({
       </form>
 
       {/* Create new collection */}
-      <form
-        action={fd => {
-          fd.set('userId', userId)
-          fd.set('collectionTitle', quartetName)
-          startTransition(() => createAction(fd))
-        }}
-      >
+      <form onSubmit={handleCreate}>
         <button
           type="submit"
           disabled={isPending}
-          className="text-xs px-3 py-1 border border-[#b8892a] text-[#b8892a] rounded hover:bg-[#f9f6f0] disabled:opacity-40"
+          className="text-xs px-3 py-1 border border-[#1c1412] text-[#1c1412] hover:bg-[#f7f5f2] disabled:opacity-40"
         >
           {isPending ? 'Creating…' : `+ Create "${quartetName}"`}
         </button>

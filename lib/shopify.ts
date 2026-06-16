@@ -3,6 +3,7 @@
  * Uses client_credentials grant against the shop-specific token endpoint.
  * Server-only.
  */
+import { unstable_cache } from 'next/cache'
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN
 const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID
@@ -58,6 +59,7 @@ async function shopifyFetch<T>(path: string, options: RequestInit = {}, retries 
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    signal: AbortSignal.timeout(10_000),
   })
 
   if (res.status === 429 && retries > 0) {
@@ -82,6 +84,7 @@ export interface ShopifyProductInput {
   tags?: string
   images?: Array<{ src: string; alt?: string }>
   variants?: Array<{ price?: string; option1?: string; option2?: string }>
+  options?: string[]  // e.g. ['Color', 'Size']
 }
 
 export async function createProduct(input: ShopifyProductInput) {
@@ -95,7 +98,9 @@ export async function createProduct(input: ShopifyProductInput) {
       images: (input.images || []).map((img, i) => ({
         src: img.src, alt: img.alt || `Mockup ${i + 1}`,
       })),
+      ...(input.options?.length ? { options: input.options.map(name => ({ name })) } : {}),
       variants: input.variants?.length ? input.variants : [{ price: '35.00' }],
+      status: 'active',
     },
   }
   const data = await shopifyFetch<{ product: any }>('/products.json', {
@@ -121,49 +126,107 @@ export interface ShopifyCollection {
   image: string | null
 }
 
-export async function listCollections(skipImages = false): Promise<ShopifyCollection[]> {
-  const [custom, smart] = await Promise.all([
-    shopifyFetch<{ custom_collections: any[] }>('/custom_collections.json?limit=250'),
-    shopifyFetch<{ smart_collections: any[] }>('/smart_collections.json?limit=250'),
-  ])
+const _fetchCollections = unstable_cache(
+  async (skipImages: boolean): Promise<ShopifyCollection[]> => {
+    const [custom, smart] = await Promise.all([
+      shopifyFetch<{ custom_collections: any[] }>('/custom_collections.json?limit=250'),
+      shopifyFetch<{ smart_collections: any[] }>('/smart_collections.json?limit=250'),
+    ])
 
-  const all = [
-    ...(custom.custom_collections || []).map((c: any) => ({ id: c.id, title: c.title, handle: c.handle, type: 'custom' as const, image: c.image?.src ?? null })),
-    ...(smart.smart_collections || []).map((c: any) => ({ id: c.id, title: c.title, handle: c.handle, type: 'smart' as const, image: c.image?.src ?? null })),
-  ]
+    const all = [
+      ...(custom.custom_collections || []).map((c: any) => ({ id: c.id, title: c.title, handle: c.handle, type: 'custom' as const, image: c.image?.src ?? null })),
+      ...(smart.smart_collections || []).map((c: any) => ({ id: c.id, title: c.title, handle: c.handle, type: 'smart' as const, image: c.image?.src ?? null })),
+    ]
 
-  if (skipImages) return all.sort((a, b) => a.title.localeCompare(b.title))
+    if (skipImages) return all.sort((a, b) => a.title.localeCompare(b.title))
 
-  // For collections without their own image, pull the first product's image.
-  // Run sequentially to stay within Shopify's 2 calls/sec rate limit.
-  const imageless = all.filter(c => !c.image)
-  if (imageless.length > 0) {
-    const fallbackMap = new Map<number, string | null>()
-    for (const c of imageless) {
-      try {
-        const data = await shopifyFetch<{ products: any[] }>(
-          `/products.json?collection_id=${c.id}&limit=1&fields=id,images`
-        )
-        fallbackMap.set(c.id, data.products?.[0]?.images?.[0]?.src ?? null)
-      } catch {
-        fallbackMap.set(c.id, null)
+    // For collections without their own image, pull the first product's image.
+    // Run sequentially to stay within Shopify's 2 calls/sec rate limit.
+    const imageless = all.filter(c => !c.image)
+    if (imageless.length > 0) {
+      const fallbackMap = new Map<number, string | null>()
+      for (const c of imageless) {
+        try {
+          const data = await shopifyFetch<{ products: any[] }>(
+            `/products.json?collection_id=${c.id}&limit=1&fields=id,images`
+          )
+          fallbackMap.set(c.id, data.products?.[0]?.images?.[0]?.src ?? null)
+        } catch {
+          fallbackMap.set(c.id, null)
+        }
       }
+      return all
+        .map(c => c.image ? c : { ...c, image: fallbackMap.get(c.id) ?? null })
+        .sort((a, b) => a.title.localeCompare(b.title))
     }
-    return all
-      .map(c => c.image ? c : { ...c, image: fallbackMap.get(c.id) ?? null })
-      .sort((a, b) => a.title.localeCompare(b.title))
-  }
 
-  return all.sort((a, b) => a.title.localeCompare(b.title))
+    return all.sort((a, b) => a.title.localeCompare(b.title))
+  },
+  ['shopify-collections'],
+  { revalidate: 300, tags: ['shopify-collections'] }
+)
+
+export async function listCollections(skipImages = false): Promise<ShopifyCollection[]> {
+  return _fetchCollections(skipImages)
 }
 
 export async function createCollection(title: string): Promise<ShopifyCollection> {
   const data = await shopifyFetch<{ custom_collection: any }>('/custom_collections.json', {
     method: 'POST',
-    body: JSON.stringify({ custom_collection: { title } }),
+    body: JSON.stringify({ custom_collection: { title, published: true, published_at: new Date().toISOString() } }),
   })
   const c = data.custom_collection
   return { id: c.id, title: c.title, handle: c.handle, type: 'custom', image: c.image?.src ?? null }
+}
+
+async function getPage(handle: string): Promise<{ id: number; body_html: string } | null> {
+  const data = await shopifyFetch<{ pages: any[] }>(`/pages.json?handle=${encodeURIComponent(handle)}`)
+  const page = data.pages?.[0]
+  return page ? { id: page.id, body_html: page.body_html || '' } : null
+}
+
+async function updatePage(pageId: number, bodyHtml: string): Promise<void> {
+  await shopifyFetch(`/pages/${pageId}.json`, {
+    method: 'PUT',
+    body: JSON.stringify({ page: { body_html: bodyHtml } }),
+  })
+}
+
+export const STOREFRONT_URL = 'https://www.customquartetstuff.com'
+
+export function getProductStorefrontUrl(handle: string): string {
+  return `${STOREFRONT_URL}/products/${handle}`
+}
+
+export function getCollectionStorefrontUrl(handle: string): string {
+  return `${STOREFRONT_URL}/collections/${handle}`
+}
+
+export async function addToQuartetDirectory(quartetName: string, collectionHandle: string): Promise<void> {
+  const page = await getPage('quartets')
+  if (!page) return
+
+  // Don't add duplicates
+  if (page.body_html.includes(`/collections/${collectionHandle}`)) return
+
+  const newLi = `<li><a title="${quartetName} Quartet Merchandise" href="${getCollectionStorefrontUrl(collectionHandle)}">${quartetName}</a></li>`
+
+  // Insert alphabetically — scan simple <li><a ...>Name</a></li> entries
+  const liPattern = /(<li><a[^>]*>)([^<]+)(<\/a><\/li>)/g
+  let match: RegExpExecArray | null
+  let insertAt = -1
+  while ((match = liPattern.exec(page.body_html)) !== null) {
+    if (match[2].localeCompare(quartetName, undefined, { sensitivity: 'base' }) > 0) {
+      insertAt = match.index
+      break
+    }
+  }
+
+  const updated = insertAt !== -1
+    ? page.body_html.slice(0, insertAt) + newLi + '\n' + page.body_html.slice(insertAt)
+    : page.body_html.replace('</ul>', newLi + '\n</ul>')
+
+  await updatePage(page.id, updated)
 }
 
 export async function addProductToCollection(collectionId: number, productId: number): Promise<void> {
@@ -173,9 +236,21 @@ export async function addProductToCollection(collectionId: number, productId: nu
   })
 }
 
+export async function addProductImage(
+  productId: number,
+  src: string,
+  variantIds: number[]
+): Promise<void> {
+  await shopifyFetch(`/products/${productId}/images.json`, {
+    method: 'POST',
+    body: JSON.stringify({ image: { src, variant_ids: variantIds } }),
+  })
+}
+
 export interface ShopifyCollectionProduct {
   id: number
   title: string
+  handle: string
   status: 'active' | 'draft'
   image: string | null
   price: string | null
@@ -185,6 +260,7 @@ export interface ShopifyCollectionProduct {
 export async function getProductsInCollection(collectionId: number, collectionType: 'custom' | 'smart' = 'custom'): Promise<ShopifyCollectionProduct[]> {
   const fetchCollects = collectionType === 'custom'
     ? shopifyFetch<{ collects: any[] }>(`/collects.json?collection_id=${collectionId}&limit=250`)
+        .catch(() => ({ collects: [] })) // SmartCollections return 404 on this endpoint
     : Promise.resolve({ collects: [] })
 
   const [productsData, collectsData] = await Promise.all([
@@ -195,6 +271,7 @@ export async function getProductsInCollection(collectionId: number, collectionTy
   return (productsData.products || []).map((p: any) => ({
     id: p.id,
     title: p.title,
+    handle: p.handle,
     status: p.status,
     image: p.images?.[0]?.src || null,
     price: p.variants?.[0]?.price || null,
@@ -223,10 +300,19 @@ export async function removeFromCollection(collectIds: number[]): Promise<void> 
   ))
 }
 
+export async function deleteCollection(collectionId: number): Promise<void> {
+  await shopifyFetch(`/custom_collections/${collectionId}.json`, { method: 'DELETE' })
+}
+
 export async function deleteProducts(productIds: number[]): Promise<void> {
   await batchShopify(productIds.map(id => () =>
     shopifyFetch(`/products/${id}.json`, { method: 'DELETE' })
   ))
+}
+
+export async function getProduct(productId: number) {
+  const data = await shopifyFetch<{ product: any }>(`/products/${productId}.json`)
+  return data.product
 }
 
 export async function applyPriceSuggestion(productId: number, reductionPct = 0.15): Promise<void> {
@@ -274,6 +360,7 @@ async function shopifyRawFetch(url: string, retries = 3): Promise<{ data: any; n
 export interface SalesLineItem {
   productId: number
   variantId: number
+  title: string
   quantity: number
   price: number
   orderedAt: string
@@ -300,6 +387,7 @@ export async function getOrderLineItemsInDateRange(startDate: string, endDate: s
           items.push({
             productId: item.product_id,
             variantId: item.variant_id,
+            title: item.title ?? '',
             quantity: item.quantity,
             price: parseFloat(item.price) || 0,
             orderedAt: order.created_at,
