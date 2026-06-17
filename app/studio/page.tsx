@@ -2,7 +2,8 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Edit2, Trash2, Send, TrendingUp, Package, AlertTriangle, ExternalLink, ShoppingBag, DollarSign } from 'lucide-react'
+import { Plus, TrendingUp, Package, AlertTriangle, ExternalLink, ShoppingBag, DollarSign } from 'lucide-react'
+import { MyDesignsClient } from '@/components/studio/MyDesignsClient'
 import { revalidatePath, unstable_cache } from 'next/cache'
 import { sendReviewRequestEmail } from '@/lib/resend'
 import { getProductsInCollection, getOrderLineItemsInDateRange } from '@/lib/shopify'
@@ -98,6 +99,8 @@ export default async function MyStudioPage({ searchParams }) {
   const soldIds      = new Set(collectionOrders.map((o: any) => o.productId))
   const staleProducts = collectionProducts.filter((p: any) => !soldIds.has(p.id) && p.status === 'active')
   const shopifyDomain = process.env.SHOPIFY_STORE_DOMAIN
+  const trentEmail = process.env.TRENT_EMAIL || ''
+  const isAdmin = user.email === trentEmail || !!(profile as any)?.is_admin
 
   // ── Server actions ────────────────────────────────────────────────────────
 
@@ -162,16 +165,16 @@ export default async function MyStudioPage({ searchParams }) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div>
+    <div data-tour="studio-page">
 
       {/* Header */}
-      <div className="flex items-end justify-between mb-8">
+      <div data-tour="studio-header" className="flex items-end justify-between mb-8">
         <div>
           <div className="eyebrow mb-2">Private Workspace</div>
           <h1 className="text-4xl font-bold tracking-tight text-[#1c1412] leading-none">{groupName}</h1>
           <div className="text-[13px] text-[#9b8c7a] mt-2">{groupLabel} studio</div>
         </div>
-        <Link href="/studio/catalog" className="btn-primary px-5 py-3 flex items-center gap-2 text-sm">
+        <Link data-tour="browse-catalog-btn" href="/studio/catalog" className="btn-primary px-5 py-3 flex items-center gap-2 text-sm">
           <Plus size={16} /> New Design
         </Link>
       </div>
@@ -197,14 +200,14 @@ export default async function MyStudioPage({ searchParams }) {
       </details>
 
       {/* ── HOMEBASE DASHBOARD ─────────────────────────────────────────────── */}
-      <section className="mb-12">
+      <section data-tour="studio-dashboard" className="mb-12">
         <div className="flex items-center justify-between mb-5">
           <div className="eyebrow">
             {profile?.shopify_collection_title
               ? `${profile.shopify_collection_title} · Dashboard`
               : 'Storefront · Dashboard'}
           </div>
-          {collectionId && shopifyDomain && (
+          {isAdmin && collectionId && shopifyDomain && (
             <a
               href={`https://${shopifyDomain}/admin/collections/${collectionId}`}
               target="_blank"
@@ -230,12 +233,11 @@ export default async function MyStudioPage({ searchParams }) {
         ) : (
           <>
             {/* Stats row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
               {[
-                { label: 'Products',      value: collectionProducts.length         },
-                { label: 'Active',        value: activeCount                       },
-                { label: 'Units · 60d',   value: totalUnits                        },
-                { label: 'Revenue · 60d', value: `$${totalRevenue.toFixed(0)}`     },
+                { label: 'Products',    value: collectionProducts.length },
+                { label: 'Active',      value: activeCount               },
+                { label: 'Units · 60d', value: totalUnits                },
               ].map(({ label, value }) => (
                 <div key={label} className="card p-5">
                   <div className="text-[28px] font-bold text-[#1c1412] leading-none mb-1">{value}</div>
@@ -310,15 +312,16 @@ export default async function MyStudioPage({ searchParams }) {
 
             {/* Inventory grid */}
             {collectionProducts.length > 0 && (
-              <div>
+              <div data-tour="studio-merch">
                 <div className="eyebrow mb-4">Your Merch · {collectionProducts.length}</div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {collectionProducts.map((p: any) => (
-                    <div key={p.id} className="card overflow-hidden select-none">
+                    <div key={p.id} className="card relative overflow-hidden select-none">
                       <div className="absolute top-2 right-2 z-10">
-                        <span className={`text-[8px] px-1.5 py-0.5 font-bold tracking-widest uppercase ${
+                        <span className={`flex items-center gap-1 text-[8px] px-1.5 py-0.5 font-bold tracking-widest uppercase ${
                           p.status === 'active' ? 'bg-[#d1fae5] text-[#065f46]' : 'bg-[#f0ece6] text-[#9b8c7a]'
                         }`} style={{ borderRadius: 2 }}>
+                          {p.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] shrink-0" />}
                           {p.status === 'active' ? 'Live' : 'Draft'}
                         </span>
                       </div>
@@ -345,7 +348,7 @@ export default async function MyStudioPage({ searchParams }) {
       <section>
 
         {/* Tab bar */}
-        <div className="flex items-center gap-8 border-b border-[#e8e0d8] mb-7">
+        <div data-tour="studio-designs" className="flex items-center gap-8 border-b border-[#e8e0d8] mb-7">
           <Link
             href="/studio"
             className={`tab-underline pb-3 ${activeTab === 'designs' ? 'active' : ''}`}
@@ -362,82 +365,12 @@ export default async function MyStudioPage({ searchParams }) {
 
         {/* ── DESIGNS TAB ──────────────────────────────────────────────────── */}
         {activeTab === 'designs' && (
-          designs.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {designs.map((d: any) => {
-                const status = d.status
-                const firstMock = (d.mockup_urls as any[])?.[0]?.mockup_url
-                const colorCount = Object.keys(d.color_variant_map || {}).length
-
-                return (
-                  <div key={d.id} className="card overflow-hidden flex flex-col group">
-                    {/* Mockup image — portrait 4:5 */}
-                    <div className="relative overflow-hidden bg-[#f0ece6]" style={{ aspectRatio: '4/5' }}>
-                      {firstMock ? (
-                        <img
-                          src={firstMock}
-                          alt={d.product_title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-1">
-                          <span className="text-[10px] tracking-[3px] text-[#c4b49f] uppercase">No Mockup Yet</span>
-                          <span className="text-[10px] text-[#c4b49f]">Open editor to generate</span>
-                        </div>
-                      )}
-                      <div className="absolute top-3 right-3">
-                        <span className={`badge badge-${status === 'review_requested' ? 'review' : status === 'approved' ? 'approved' : status === 'pushed_to_shopify' ? 'pushed' : 'draft'}`}>
-                          {status.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 flex-1 flex flex-col">
-                      <div className="font-semibold text-[#1c1412] tracking-tight">{d.product_title}</div>
-                      <div className="text-[12px] text-[#9b8c7a] mt-0.5">
-                        {colorCount > 1 ? `${colorCount} colors` : (d.color || '—')} · {d.placement}
-                      </div>
-                      {d.notes && (
-                        <div className="mt-2 text-xs line-clamp-2 text-[#9b8c7a] italic">"{d.notes}"</div>
-                      )}
-                      <div className="mt-auto pt-4 flex gap-2 flex-wrap border-t border-[#f0ece6]">
-                        <Link
-                          href={`/studio/editor?designId=${d.id}`}
-                          className="btn-secondary flex-1 text-center py-2 flex items-center justify-center gap-1.5 text-xs"
-                        >
-                          <Edit2 size={13} /> Edit
-                        </Link>
-                        {status === 'draft' && (
-                          <form action={async () => { 'use server'; await requestReview(d.id) }}>
-                            <button className="btn-primary py-2 px-4 flex items-center justify-center gap-1.5 text-xs">
-                              <Send size={13} /> Submit for Review
-                            </button>
-                          </form>
-                        )}
-                        <form action={async () => { 'use server'; await deleteDesign(d.id) }}>
-                          <button className="p-2 text-[#9b8c7a] hover:text-[#9b1c1c] transition">
-                            <Trash2 size={15} />
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="card p-16 text-center">
-              <p className="text-[#9b8c7a] mb-6 text-sm">No designs yet.</p>
-              <Link href="/studio/catalog" className="btn-primary inline-block px-8 py-3">
-                Browse the catalog to begin
-              </Link>
-            </div>
-          )
+          <MyDesignsClient designs={designs} showTourTarget />
         )}
 
         {/* ── LOGO LIBRARY TAB ─────────────────────────────────────────────── */}
         {activeTab === 'logos' && (
-          <div>
+          <div data-tour="studio-logos">
             {logos.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
                 {logos.map((logo: any) => (

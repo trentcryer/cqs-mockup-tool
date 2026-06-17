@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { useTour } from '@/components/tour/TourProvider'
 import { RefreshCw, Save, ArrowLeft, ImageIcon } from 'lucide-react'
 import type { PrintfulTemplatesResponse, PrintfulTemplate } from '@/lib/printful'
 
@@ -22,6 +23,8 @@ interface Props {
   existingDesign: any | null
   logoSignedUrl: string | null
   savedLogos: SavedLogo[]
+  adminLogos?: SavedLogo[]
+  asUserId?: string | null
 }
 
 function findTemplate(
@@ -44,7 +47,7 @@ function findTemplate(
 }
 
 export default function StudioEditorClient({
-  product, colorMap, placements, templatesResponse, existingDesign, logoSignedUrl, savedLogos,
+  product, colorMap, placements, templatesResponse, existingDesign, logoSignedUrl, savedLogos, adminLogos = [], asUserId,
 }: Props) {
   const supabase = createClient()
 
@@ -91,6 +94,16 @@ export default function StudioEditorClient({
     : []
   const [extraColors, setExtraColors] = useState<string[]>(initExtraColors)
   const [showLogoPicker, setShowLogoPicker] = useState(!logoSignedUrl)
+  const { continueTour } = useTour()
+  const pickerWasOpen = useRef(!logoSignedUrl)
+
+  // When the logo picker closes (user uploaded/selected a logo), advance tour to main editor steps
+  useEffect(() => {
+    if (pickerWasOpen.current && !showLogoPicker) {
+      pickerWasOpen.current = false
+      setTimeout(continueTour, 400)
+    }
+  }, [showLogoPicker])
 
   const template = useMemo(
     () => findTemplate(templatesResponse, selectedPlacement, variantIds),
@@ -277,15 +290,16 @@ export default function StudioEditorClient({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not logged in')
 
+      const effectiveUserId = asUserId ?? user.id
       let finalLogoPath = savedLogoPath
 
       if (logoFile) {
-        finalLogoPath = `logos/${user.id}/${Date.now()}-${logoFile.name}`
+        finalLogoPath = `logos/${effectiveUserId}/${Date.now()}-${logoFile.name}`
         const { error } = await supabase.storage
           .from('cqs-assets').upload(finalLogoPath, logoFile, { upsert: true })
         if (error) throw error
         await supabase.from('logos').insert({
-          user_id: user.id, storage_path: finalLogoPath,
+          user_id: effectiveUserId, storage_path: finalLogoPath,
           filename: logoFile.name, mime_type: logoFile.type, size_bytes: logoFile.size,
         } as any)
         setSavedLogoPath(finalLogoPath)
@@ -295,14 +309,14 @@ export default function StudioEditorClient({
       const { data: profile } = await supabase
         .from('profiles').select('quartet_name').eq('id', user.id).single()
 
-      // Build color_variant_map — primary color + all checked extra colors
       const colorVariantMap: Record<string, number[]> = {
         [selectedColor]: variantIds,
         ...Object.fromEntries(extraColors.map(c => [c, colorMap[c] || []])),
       }
 
       const designPayload = {
-        user_id: user.id,
+        ...(existingDesign?.id ? { id: existingDesign.id } : {}),
+        user_id: effectiveUserId,
         quartet_name: (profile as any)?.quartet_name || 'My Quartet',
         product_id: product.id,
         product_title: product.title,
@@ -317,7 +331,15 @@ export default function StudioEditorClient({
         mockup_urls: mockups,
       }
 
-      if (existingDesign?.id) {
+      if (asUserId) {
+        // Save on behalf of a group — use the admin endpoint to bypass RLS
+        const res = await fetch('/api/admin/save-design', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...designPayload, asUserId }),
+        })
+        if (!res.ok) throw new Error((await res.json()).error || 'Save failed')
+      } else if (existingDesign?.id) {
         const { error } = await supabase.from('designs').update(designPayload).eq('id', existingDesign.id)
         if (error) throw error
       } else {
@@ -326,8 +348,8 @@ export default function StudioEditorClient({
       }
 
       const colorCount = Object.keys(colorVariantMap).length
-      toast.success(existingDesign?.id ? 'Design updated!' : `Submitted${colorCount > 1 ? ` for ${colorCount} colors` : ''}!`)
-      window.location.href = '/studio'
+      toast.success(existingDesign?.id ? 'Design updated!' : `Design saved for group!`)
+      window.location.href = asUserId ? '/admin/groups' : '/studio'
     } catch (e: any) {
       toast.error('Save failed: ' + e.message)
     } finally {
@@ -351,7 +373,7 @@ export default function StudioEditorClient({
       {/* Logo picker modal — shown on first load when no logo is selected */}
       {showLogoPicker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white shadow-2xl w-full max-w-lg overflow-hidden">
+          <div data-tour="editor-logo-modal" className="bg-white shadow-2xl w-full max-w-lg overflow-hidden">
 
             {/* Header */}
             <div className="px-8 pt-8 pb-5 border-b border-[#f0ebe3]">
@@ -393,6 +415,33 @@ export default function StudioEditorClient({
               </div>
             )}
 
+            {/* Admin's own logo library — admin mode only */}
+            {asUserId && adminLogos.length > 0 && (
+              <div className="px-8 py-5 border-b border-[#f0ebe3] max-h-64 overflow-y-auto">
+                <p className="text-[9px] uppercase tracking-[2px] font-bold text-[#9b8c7a] mb-3">
+                  Your File Library
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {adminLogos.map(logo => (
+                    <button
+                      key={logo.id}
+                      onClick={() => selectLibraryLogo(logo)}
+                      className="group relative aspect-square bg-[#f7f5f2] overflow-hidden transition-all duration-200 hover:shadow-sm focus:outline-none border-2 border-transparent hover:border-[#1c1412]"
+                    >
+                      <img
+                        src={logo.displayUrl}
+                        alt={logo.filename}
+                        className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 py-1.5 bg-white/95 text-[9px] text-[#4a3f35] text-center truncate px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {logo.filename}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Upload option */}
             <div className="px-8 py-6">
               {savedLogos.length > 0 && (
@@ -400,7 +449,7 @@ export default function StudioEditorClient({
                   Upload New
                 </p>
               )}
-              <label className="flex items-center gap-4 border-2 border-dashed border-[#d4c5b0] px-5 py-4 cursor-pointer hover:border-[#1c1412] hover:bg-[#f7f5f2] transition-all group">
+              <label data-tour="editor-upload-btn" className="flex items-center gap-4 border-2 border-dashed border-[#d4c5b0] px-5 py-4 cursor-pointer hover:border-[#1c1412] hover:bg-[#f7f5f2] transition-all group">
                 <input type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
                 <div className="w-10 h-10 bg-[#f0ece6] flex items-center justify-center shrink-0 transition-colors">
                   <ImageIcon size={20} className="text-[#9b8c7a]" />
@@ -419,8 +468,15 @@ export default function StudioEditorClient({
         </div>
       )}
 
+      {asUserId && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 text-amber-800 text-sm" style={{ borderRadius: 4 }}>
+          <span className="font-semibold">Admin mode:</span> designing on behalf of a group — saves to their account
+          <Link href="/admin/groups" className="ml-auto text-xs underline text-amber-700 hover:text-amber-900">← Back to Groups</Link>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/studio" className="text-[#6b5f54] hover:text-[#1c1412]"><ArrowLeft size={20} /></Link>
+        <Link href={asUserId ? '/admin/groups' : '/studio'} className="text-[#6b5f54] hover:text-[#1c1412]"><ArrowLeft size={20} /></Link>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{product.title}</h1>
           <div className="text-xs text-[#9b8c7a] mt-0.5">{selectedPlacement.replace(/_/g, ' ')} · {selectedColor}</div>
@@ -432,7 +488,7 @@ export default function StudioEditorClient({
         <div className="space-y-5">
 
           {/* 1. Product & Variant */}
-          <div className="card p-5">
+          <div data-tour="editor-color" className="card p-5">
             <div className="uppercase text-xs tracking-[1.5px] text-[#9b8c7a] mb-3">1. Product &amp; Variant</div>
             <Link href="/studio/catalog" className="text-sm text-[#9b8c7a] hover:text-[#1c1412] underline block mb-3">
               ← Pick a different item
@@ -476,7 +532,7 @@ export default function StudioEditorClient({
               </div>
             )}
             {placements.length > 0 && (
-              <div>
+              <div data-tour="editor-placement">
                 <label className="text-xs uppercase text-[#9b8c7a] block mb-1.5">Placement</label>
                 <select value={selectedPlacement} onChange={e => handlePlacementChange(e.target.value)}
                   className="w-full border border-[#d4c5b0] rounded-lg px-3 py-2 bg-white text-sm">
@@ -487,7 +543,7 @@ export default function StudioEditorClient({
           </div>
 
           {/* 2. Logo */}
-          <div className="card p-5">
+          <div data-tour="editor-logo" className="card p-5">
             <div className="uppercase text-xs tracking-[1.5px] text-[#9b8c7a] mb-3">2. Your Logo</div>
             {logoPreviewUrl ? (
               <div className="border-2 border-[#1c1412] p-3 bg-[#faf9f7]">
@@ -625,13 +681,13 @@ export default function StudioEditorClient({
 
           {/* Actions */}
           <div className="space-y-3">
-            <button onClick={generateMockup} disabled={isGenerating || !logoPreviewUrl}
+            <button data-tour="editor-generate" onClick={generateMockup} disabled={isGenerating || !logoPreviewUrl}
               className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
               {isGenerating
                 ? <><RefreshCw className="animate-spin" size={16} /> Generating… (10–20s)</>
                 : 'Generate Mockup'}
             </button>
-            <button onClick={saveDraft} disabled={isSaving || (!logoPreviewUrl && !savedLogoPath)}
+            <button data-tour="editor-save" onClick={saveDraft} disabled={isSaving || (!logoPreviewUrl && !savedLogoPath)}
               className="btn-secondary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
               <Save size={16} />{isSaving ? ' Saving…' : ' Save Draft'}
             </button>
@@ -642,7 +698,7 @@ export default function StudioEditorClient({
         </div>
 
         {/* Preview area */}
-        <div className="space-y-6">
+        <div data-tour="editor-preview" className="space-y-6">
           {/* Live preview */}
           <div>
             <div className="text-xs uppercase tracking-widest text-[#9b8c7a] mb-2">

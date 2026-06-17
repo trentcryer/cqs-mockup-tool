@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, CheckSquare, Square, Trash2, Eye, EyeOff, X, Search, BarChart2 } from 'lucide-react'
+import { Loader2, CheckSquare, Square, Trash2, Eye, EyeOff, X, Search, BarChart2, Paintbrush } from 'lucide-react'
 import type { ShopifyCollection, ShopifyCollectionProduct } from '@/lib/shopify'
 import SalesReport from './SalesReport'
 
 interface Props {
   collections: ShopifyCollection[]
   collectionLogoUrls?: Record<number, string>
+  collectionUserIds?: Record<number, string>
 }
 
-export default function CollectionsClient({ collections, collectionLogoUrls = {} }: Props) {
+export default function CollectionsClient({ collections, collectionLogoUrls = {}, collectionUserIds = {} }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselect = parseInt(searchParams.get('id') || '') || null
@@ -189,6 +190,20 @@ export default function CollectionsClient({ collections, collectionLogoUrls = {}
                   }`}>
                   <BarChart2 size={12} /> Sales Report
                 </button>
+                {collectionUserIds[selectedCollectionId!] ? (
+                  <a
+                    href={`/studio/catalog?asUser=${collectionUserIds[selectedCollectionId!]}`}
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs rounded-lg transition bg-[#1c1412] text-white hover:bg-[#2d201c]"
+                  >
+                    <Paintbrush size={12} /> Add Product
+                  </a>
+                ) : (
+                  <button disabled
+                    title="No user account linked to this collection"
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs rounded-lg text-[#c4b49f] cursor-not-allowed opacity-50">
+                    <Paintbrush size={12} /> Add Product
+                  </button>
+                )}
               </div>
 
               {/* Select all — products tab only */}

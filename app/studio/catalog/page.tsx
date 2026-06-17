@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { RefreshCw, Search, Grid3X3, List, X, ChevronRight, Info, Star } from 'lucide-react'
 
@@ -21,12 +22,12 @@ type ViewMode = 'grid' | 'list'
 
 // image: local override (drop a file in /public/catalog-tabs/ to replace the default)
 // defaultImage: Printful ghost mockup shown until a custom photo is added
-const CATEGORIES = [
+const CATEGORIES: Array<{ key: string; label: string; gradient: string; image: string; defaultImage: string; test?: RegExp; imgPosition?: string; imgScale?: number }> = [
   { key: 'favorites',   label: 'Favorites',      gradient: 'from-[#1c1412] to-[#3a2010]',  image: '/catalog-tabs/favorites.jpg',   defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/6d/6d7501c1e4b984392a258054bf0cd145_l' },
   { key: 'all',         label: 'All Products',   gradient: 'from-[#1c1412] to-[#4a3020]',  image: '/catalog-tabs/all.jpg',         defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/20/2079a3ee4cc472ad952fe16654f274cd_l' },
-  { key: 'tees',        label: 'T-Shirts',       gradient: 'from-[#7c3228] to-[#b84c3c]',  image: '/catalog-tabs/tees.jpg',        defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/20/2079a3ee4cc472ad952fe16654f274cd_l',  test: /t-?shirt|tee\b/i },
-  { key: 'polos',       label: 'Polos & Shirts', gradient: 'from-[#1e3a30] to-[#3a7060]',  image: '/catalog-tabs/polos.jpg',       defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/23/23d7331453bc52729e632d586a377cba_l',  test: /polo/i },
-  { key: 'hoodies',     label: 'Hoodies',        gradient: 'from-[#2a2050] to-[#5a4090]',  image: '/catalog-tabs/hoodies.jpg',     defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/4f/4fdfa28ee11ae248d7c9ef7f0822ca2e_l',  test: /hoodie|sweatshirt|crewneck|crew neck/i },
+  { key: 'tees',        label: 'T-Shirts',       gradient: 'from-[#7c3228] to-[#b84c3c]',  image: '/catalog-tabs/tees.jpg',        defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/20/2079a3ee4cc472ad952fe16654f274cd_l',  test: /t-?shirt|tee\b/i,           imgPosition: 'center 30%' },
+  { key: 'polos',       label: 'Polos', gradient: 'from-[#1e3a30] to-[#3a7060]',  image: '/catalog-tabs/polos.jpg',       defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/23/23d7331453bc52729e632d586a377cba_l',  test: /polo/i,                      imgPosition: 'center 30%' },
+  { key: 'hoodies',     label: 'Hoodies',        gradient: 'from-[#2a2050] to-[#5a4090]',  image: '/catalog-tabs/hoodies.jpg',     defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/4f/4fdfa28ee11ae248d7c9ef7f0822ca2e_l',  test: /hoodie|sweatshirt|crewneck|crew neck/i, imgPosition: 'center 30%' },
   { key: 'performance', label: 'Performance',    gradient: 'from-[#0f2a48] to-[#1a5c9a]',  image: '/catalog-tabs/performance.jpg', defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/f1/f198d6b652576ea41e0859db58e65db8_l',  test: /performance|sport|athletic|moisture|dri.?fit/i },
   { key: 'jackets',     label: 'Jackets',        gradient: 'from-[#282828] to-[#585858]',  image: '/catalog-tabs/jackets.jpg',     defaultImage: 'https://files.cdn.printful.com/o/upload/product-catalog-img/bd/bdf96753e23e29f386c667ad67d99946_l',  test: /jacket|vest|windbreaker|zip.?up/i },
   { key: 'hats',        label: 'Hats & Caps',    gradient: 'from-[#4a3800] to-[#9a7010]',  image: '/catalog-tabs/hats.jpg',        defaultImage: 'https://files.cdn.printful.com/o/products/206/product_1584101692.jpg',  test: /\bhat\b|\bcap\b|beanie/i },
@@ -81,13 +82,13 @@ function PrintBadge({ method }: { method?: string }) {
   )
 }
 
-function ProductCardGrid({ p, onExpand }: { p: PrintfulProduct; onExpand: () => void }) {
+function ProductCardGrid({ p, onExpand, asUser }: { p: PrintfulProduct; onExpand: () => void; asUser?: string }) {
   const colors = p.colors || []
   const shown = colors.slice(0, 9)
   const extra = colors.length - shown.length
 
   return (
-    <div className="group relative">
+    <div className="group relative" data-tour={p.id === 71 ? 'catalog-bella-3001' : undefined}>
       <div className="relative bg-white overflow-hidden flex flex-col" style={{ borderRadius: 4, boxShadow: '0 2px 10px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)' }}>
         <PrintBadge method={p.printMethod} />
 
@@ -124,7 +125,7 @@ function ProductCardGrid({ p, onExpand }: { p: PrintfulProduct; onExpand: () => 
             <Link href={`/studio/catalog/${p.id}`} className="flex-1 border border-[#e8e0d8] text-[#4a3f35] text-center py-1.5 text-[10px] font-medium hover:border-[#1c1412] transition-colors flex items-center justify-center gap-1" style={{ borderRadius: 3 }}>
               <Info size={10} /> Details
             </Link>
-            <Link href={`/studio/editor?productId=${p.id}`} className="flex-1 bg-[#1c1412] text-white text-center py-1.5 text-[10px] font-semibold flex items-center justify-center gap-1" style={{ borderRadius: 3 }}>
+            <Link href={`/studio/editor?productId=${p.id}${asUser ? `&asUser=${asUser}` : ''}`} className="flex-1 bg-[#1c1412] text-white text-center py-1.5 text-[10px] font-semibold flex items-center justify-center gap-1" style={{ borderRadius: 3 }}>
               Design <ChevronRight size={10} />
             </Link>
           </div>
@@ -134,7 +135,7 @@ function ProductCardGrid({ p, onExpand }: { p: PrintfulProduct; onExpand: () => 
   )
 }
 
-function ProductExpandPopup({ p, onClose }: { p: PrintfulProduct; onClose: () => void }) {
+function ProductExpandPopup({ p, onClose, asUser }: { p: PrintfulProduct; onClose: () => void; asUser?: string }) {
   const { intro, bullets } = descriptionParts(p.description || '')
   const catalogColors = p.colors || []
 
@@ -157,7 +158,7 @@ function ProductExpandPopup({ p, onClose }: { p: PrintfulProduct; onClose: () =>
   }, [p.id])
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={onClose}>
+    <div data-tour="catalog-expand-popup" className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
       <div
         className="relative w-[800px] max-w-[95vw] bg-white shadow-[0_32px_80px_rgba(0,0,0,0.3)] overflow-hidden flex z-10"
@@ -240,7 +241,7 @@ function ProductExpandPopup({ p, onClose }: { p: PrintfulProduct; onClose: () =>
               <Info size={13} /> Full Details
             </Link>
             <Link
-              href={`/studio/editor?productId=${p.id}`}
+              href={`/studio/editor?productId=${p.id}${asUser ? `&asUser=${asUser}` : ''}`}
               className="flex-1 bg-[#1c1412] text-white text-center py-3 text-[13px] font-semibold flex items-center justify-center gap-1.5"
               style={{ borderRadius: 3 }}
             >
@@ -253,7 +254,7 @@ function ProductExpandPopup({ p, onClose }: { p: PrintfulProduct; onClose: () =>
   )
 }
 
-function ProductCardList({ p }: { p: PrintfulProduct }) {
+function ProductCardList({ p, asUser }: { p: PrintfulProduct; asUser?: string }) {
   const intro = descriptionIntro(p.description || '')
   const colors = p.colors || []
   return (
@@ -279,7 +280,7 @@ function ProductCardList({ p }: { p: PrintfulProduct }) {
         <Link href={`/studio/catalog/${p.id}`} className="border border-[#e8e0d8] text-[#4a3f35] px-3 py-1.5 text-[11px] font-medium hover:border-[#1c1412] transition-colors" style={{ borderRadius: 3 }}>
           Details
         </Link>
-        <Link href={`/studio/editor?productId=${p.id}`} className="bg-[#1c1412] text-white px-3 py-1.5 text-[11px] font-semibold flex items-center gap-1" style={{ borderRadius: 3 }}>
+        <Link href={`/studio/editor?productId=${p.id}${asUser ? `&asUser=${asUser}` : ''}`} className="bg-[#1c1412] text-white px-3 py-1.5 text-[11px] font-semibold flex items-center gap-1" style={{ borderRadius: 3 }}>
           Design <ChevronRight size={11} />
         </Link>
       </div>
@@ -305,11 +306,12 @@ function SkeletonGrid() {
 
 const PAGE_SIZE = 36
 
-function CategoryTab({ cat, active, onClick, liveImage }: {
+function CategoryTab({ cat, active, onClick, liveImage, aspectRatio = '3/2' }: {
   cat: typeof CATEGORIES[number]
   active: boolean
   onClick: () => void
   liveImage?: string
+  aspectRatio?: string
 }) {
   // Priority: live design mockup → local custom photo → Printful ghost → gradient
   const [liveFailed, setLiveFailed]       = useState(false)
@@ -335,15 +337,16 @@ function CategoryTab({ cat, active, onClick, liveImage }: {
           ? 'ring-2 ring-[#1c1412] ring-offset-2'
           : 'hover:ring-2 hover:ring-[#1c1412]/40 hover:ring-offset-1'
       }`}
-      style={{ borderRadius: 6, aspectRatio: '3/2' }}
+      style={{ borderRadius: 6, aspectRatio }}
     >
+      <div className="absolute inset-0 bg-[#1c1412]" />
       {showImage ? (
         <img
           src={src!}
           alt={cat.label}
           onError={handleError}
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-          style={{ filter: active ? 'brightness(1.05) saturate(1.15)' : 'brightness(0.92) saturate(1.1)' }}
+          style={{ objectPosition: cat.imgPosition ?? 'center', transform: cat.imgScale ? `scale(${cat.imgScale})` : undefined, filter: active ? 'brightness(1.05)' : 'brightness(0.92)' }}
         />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient}`} />
@@ -361,6 +364,9 @@ function CategoryTab({ cat, active, onClick, liveImage }: {
 }
 
 export default function CatalogPage() {
+  const searchParams = useSearchParams()
+  const asUser = searchParams.get('asUser') || ''
+
   const [q, setQ]                       = useState('')
   const [products, setProducts]         = useState<PrintfulProduct[]>([])
   const [loading, setLoading]           = useState(true)
@@ -396,6 +402,12 @@ export default function CatalogPage() {
       .catch(() => {})
   }, [])
 
+  function handleCategoryClick(key: string) {
+    setCategory(key)
+    if (key === 'aop') setPrintMethod('aop')
+    else if (printMethod === 'aop') setPrintMethod('standard')
+  }
+
   useEffect(() => { setPage(1) }, [q, activeCategory, printMethod, sort])
 
   const filtered = useMemo(() => {
@@ -413,7 +425,7 @@ export default function CatalogPage() {
   const activeCatLabel = CATEGORIES.find(c => c.key === activeCategory)?.label || 'All Products'
 
   return (
-    <div className="min-h-screen bg-[#f7f5f2]">
+    <div data-tour="catalog-page" className="min-h-screen bg-[#f7f5f2]">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[11px] text-[#9b8c7a] mb-6 tracking-wide">
         <Link href="/studio" className="hover:text-[#1c1412] transition">My Studio</Link>
@@ -451,44 +463,42 @@ export default function CatalogPage() {
         </div>
       </div>
 
-      {/* Category tiles — 6 top, 5 bottom */}
-      <div className="space-y-2 mb-8">
-        <div className="grid grid-cols-6 gap-2">
-          {CATEGORIES.slice(0, 6).map(cat => (
-            <CategoryTab
-              key={cat.key}
-              cat={cat}
-              active={activeCategory === cat.key}
-              onClick={() => setCategory(cat.key)}
-              liveImage={tabImages[cat.key]}
-            />
-          ))}
-        </div>
-        <div className="grid grid-cols-5 gap-2">
-          {CATEGORIES.slice(6).map(cat => (
-            <CategoryTab
-              key={cat.key}
-              cat={cat}
-              active={activeCategory === cat.key}
-              onClick={() => setCategory(cat.key)}
-              liveImage={tabImages[cat.key]}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Category tiles — others on top (small), featured on bottom (large) */}
+      {(() => {
+        const TOP_KEYS    = ['all', 'jackets', 'hats', 'accessories', 'aop', 'embroidery']
+        const BOTTOM_KEYS = ['favorites', 'tees', 'polos', 'hoodies', 'performance']
+        const topCats    = TOP_KEYS.map(k => CATEGORIES.find(c => c.key === k)!).filter(Boolean)
+        const bottomCats = BOTTOM_KEYS.map(k => CATEGORIES.find(c => c.key === k)!).filter(Boolean)
+        return (
+          <div data-tour="catalog-categories" className="space-y-2 mb-8">
+            <div className="grid grid-cols-6 gap-2">
+              {topCats.map(cat => (
+                <CategoryTab key={cat.key} cat={cat} active={activeCategory === cat.key}
+                  onClick={() => handleCategoryClick(cat.key)} liveImage={tabImages[cat.key]} aspectRatio="3/2" />
+              ))}
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {bottomCats.map(cat => (
+                <CategoryTab key={cat.key} cat={cat} active={activeCategory === cat.key}
+                  onClick={() => handleCategoryClick(cat.key)} liveImage={tabImages[cat.key]} aspectRatio="4/3" />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Main layout */}
       <div className="flex gap-8 items-start">
 
         {/* Left sidebar */}
-        <aside className="hidden lg:block w-48 shrink-0 space-y-7 sticky top-24">
+        <aside data-tour="catalog-sidebar" className="hidden lg:block w-48 shrink-0 space-y-7 sticky top-24">
           <div>
             <p className="eyebrow mb-3">Category</p>
             <div className="space-y-0.5">
               {CATEGORIES.map(cat => (
                 <button
                   key={cat.key}
-                  onClick={() => setCategory(cat.key)}
+                  onClick={() => handleCategoryClick(cat.key)}
                   className={`w-full text-left px-3 py-2 text-[13px] transition-all ${
                     activeCategory === cat.key
                       ? 'bg-[#1c1412] text-white font-semibold'
@@ -507,7 +517,7 @@ export default function CatalogPage() {
 
           <div className="border-t border-[#e8e0d8]" />
 
-          <div>
+          <div data-tour="catalog-print-method">
             <p className="eyebrow mb-3">Print Method</p>
             <div className="space-y-0.5">
               {PRINT_METHODS.map(m => (
@@ -600,8 +610,8 @@ export default function CatalogPage() {
           )}
 
           {view === 'grid' ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {loading ? <SkeletonGrid /> : visible.map(p => <ProductCardGrid key={p.id} p={p} onExpand={() => setExpandedId(p.id)} />)}
+            <div data-tour="catalog-grid" className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {loading ? <SkeletonGrid /> : visible.map(p => <ProductCardGrid key={p.id} p={p} onExpand={() => setExpandedId(p.id)} asUser={asUser} />)}
               {!loading && visible.length === 0 && (
                 <div className="col-span-full py-20 text-center text-[#9b8c7a] text-sm">
                   No products match your filters.
@@ -615,7 +625,7 @@ export default function CatalogPage() {
                 ? Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="bg-white h-20 animate-pulse" style={{ borderRadius: 4 }} />
                   ))
-                : visible.map(p => <ProductCardList key={p.id} p={p} />)
+                : visible.map(p => <ProductCardList key={p.id} p={p} asUser={asUser} />)
               }
               {!loading && visible.length === 0 && (
                 <div className="py-20 text-center text-[#9b8c7a] text-sm">No products match your filters.</div>
@@ -638,7 +648,7 @@ export default function CatalogPage() {
       </div>
 
       {expandedProduct && (
-        <ProductExpandPopup p={expandedProduct} onClose={() => setExpandedId(null)} />
+        <ProductExpandPopup p={expandedProduct} onClose={() => setExpandedId(null)} asUser={asUser} />
       )}
     </div>
   )

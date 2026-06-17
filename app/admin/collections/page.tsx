@@ -21,6 +21,7 @@ export default async function CollectionsPage() {
 
   // Build a map of collectionId → signed logo URL from Supabase designs
   const collectionLogoUrls: Record<number, string> = {}
+  const collectionUserIds: Record<number, string> = {}
   try {
     const admin = createAdminClient()
 
@@ -31,6 +32,7 @@ export default async function CollectionsPage() {
       .not('shopify_collection_id', 'is', null) as { data: { id: string; shopify_collection_id: number }[] | null }
 
     if (profiles?.length) {
+      for (const p of profiles) collectionUserIds[p.shopify_collection_id] = p.id
       const userIds = profiles.map(p => p.id)
       const profileByUserId = Object.fromEntries(profiles.map(p => [p.id, p.shopify_collection_id]))
 
@@ -78,7 +80,7 @@ export default async function CollectionsPage() {
           Shopify collections unavailable — check your credentials.
         </div>
       ) : (
-        <CollectionsClient collections={collections} collectionLogoUrls={collectionLogoUrls} />
+        <CollectionsClient collections={collections} collectionLogoUrls={collectionLogoUrls} collectionUserIds={collectionUserIds} />
       )}
     </div>
   )

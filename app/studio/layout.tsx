@@ -2,7 +2,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { LogOut, User } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import { TourProvider } from '@/components/tour/TourProvider'
+import { TourControls } from '@/components/tour/TourControls'
+import { GroupLogoButton } from '@/components/studio/GroupLogoButton'
 
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -22,7 +25,18 @@ export default async function StudioLayout({ children }: { children: React.React
   const groupLabel = groupType === 'chorus' ? 'Chorus' : 'Quartet'
   const groupName = (profile as any)?.quartet_name || `My ${groupLabel}`
 
+  // Sign the profile logo URL if one is set
+  const profileLogoPath: string | null = (profile as any)?.profile_logo_path ?? null
+  let profileLogoUrl: string | null = null
+  if (profileLogoPath) {
+    const { data: signed } = await supabase.storage
+      .from('cqs-assets')
+      .createSignedUrls([profileLogoPath], 3600)
+    profileLogoUrl = signed?.[0]?.signedUrl ?? null
+  }
+
   return (
+    <TourProvider>
     <div className="min-h-screen flex flex-col">
       {/* Studio Header */}
       <header className="cqs-header sticky top-0 z-50">
@@ -35,9 +49,11 @@ export default async function StudioLayout({ children }: { children: React.React
                 <div className="text-[9px] text-white/40 tracking-[2.5px] uppercase">Custom Quartet Stuff</div>
               </div>
             </Link>
-            <div className="pl-5 border-l border-white/15 text-sm text-white/60 font-medium">
-              {groupName}
-            </div>
+            <GroupLogoButton
+              groupName={groupName}
+              profileLogoUrl={profileLogoUrl}
+              userId={user.id}
+            />
           </div>
 
           <div className="flex items-center gap-1 text-sm">
@@ -46,7 +62,11 @@ export default async function StudioLayout({ children }: { children: React.React
             <Link href="/studio/promote" className="text-white/75 hover:text-white px-3 py-2 rounded hover:bg-white/8 transition text-[13px]">Promote</Link>
             <Link href="/admin" className="text-white/40 hover:text-white/75 px-3 py-2 rounded hover:bg-white/8 transition text-[11px] tracking-[1.5px] uppercase ml-2">Admin</Link>
 
-            <form action="/auth/signout" method="POST" className="ml-3 pl-3 border-l border-white/15">
+            <div className="ml-1 pl-3 border-l border-white/15">
+              <TourControls />
+            </div>
+
+            <form action="/auth/signout" method="POST" className="pl-3 border-l border-white/15">
               <button className="flex items-center gap-1.5 text-white/50 hover:text-white/90 transition text-[13px]">
                 <LogOut size={14} /> <span className="hidden sm:inline">Out</span>
               </button>
@@ -63,5 +83,6 @@ export default async function StudioLayout({ children }: { children: React.React
         Private workspace · {groupName} · CQS
       </footer>
     </div>
+    </TourProvider>
   )
 }

@@ -341,6 +341,25 @@ class PrintfulClient {
     return result
   }
 
+  async listFiles(limit = 100, offset = 0): Promise<Array<{
+    id: number; url: string; preview_url: string; thumbnail_url: string
+    filename: string; type: string; status: string; created: number; visible: boolean
+  }>> {
+    // v1 has no list endpoint — v2 requires X-PF-Store-Id
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json',
+    }
+    if (process.env.PRINTFUL_STORE_ID) headers['X-PF-Store-Id'] = process.env.PRINTFUL_STORE_ID
+    const res = await fetch(`${BASE_URL}/v2/files?limit=${limit}&offset=${offset}`, {
+      headers,
+      signal: AbortSignal.timeout(this.timeout),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new PrintfulError(json?.error?.message || res.statusText, res.status)
+    return json?.data ?? []
+  }
+
   /**
    * Create a mockup generation task.
    * This is the key method for turning (logo + placement + position) into beautiful photos.

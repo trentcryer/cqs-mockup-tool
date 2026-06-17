@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Loader2, Plus, Copy, Check, Trash2, CheckCircle2, AlertCircle, Link2, RefreshCw } from 'lucide-react'
+import { Loader2, Plus, Copy, Check, Trash2, CheckCircle2, AlertCircle, Link2, RefreshCw, Paintbrush } from 'lucide-react'
 
 export interface CollectionRow {
   id: number
@@ -303,6 +303,12 @@ function ActiveAccountRow({ collection, isSelected, onToggle, generateLinkAction
               </>
             ) : (
               <>
+                <a
+                  href={`/studio/catalog?asUser=${collection.account!.id}`}
+                  className="flex items-center gap-1 text-xs text-white bg-[#1c1412] hover:bg-[#2d201c] border border-[#1c1412] rounded-lg px-2 py-1 transition"
+                >
+                  <Paintbrush size={11} /> Add Product
+                </a>
                 <button onClick={handleResendLink} disabled={isPending} title="Generate new sign-in link"
                   className="flex items-center gap-1 text-xs text-[#6b5f54] hover:text-[#1c1412] border border-[#d4c5b0] rounded-lg px-2 py-1 transition disabled:opacity-40">
                   {isPending ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
