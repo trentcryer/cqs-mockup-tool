@@ -293,8 +293,8 @@ function ActiveAccountRow({ collection, isSelected, onToggle, generateLinkAction
         <td className="px-5 py-3 text-[#6b5f54] font-mono text-xs">{collection.account!.email}</td>
         <td className="px-5 py-3 text-center tabular-nums text-[#6b5f54] text-sm">{collection.account!.design_count}</td>
         <td className="px-5 py-3 text-xs text-[#8a7660]">{formatDate(collection.account!.created_at)}</td>
-        <td className="px-5 py-3 text-right">
-          <div className="flex items-center justify-end gap-2">
+        <td className="px-5 py-3 text-right w-56">
+          <div className="flex items-center justify-end gap-2 flex-nowrap">
             {confirmDelete ? (
               <>
                 <span className="text-xs text-red-600">Delete?</span>
@@ -440,8 +440,8 @@ export default function GroupsClient({ collections, createCollectionAction, assi
               <BulkDeleteBar count={withAccountSelectedCount} onDelete={handleBulkDelete} isPending={bulkPending} />
             )}
           </div>
-          <div className="bg-white rounded-xl border border-[#e8dcc8] overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-xl border border-[#e8dcc8] overflow-x-auto">
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b border-[#e8dcc8] bg-[#faf7f2] text-left">
                   <th className="px-5 py-3 w-8" />
@@ -449,7 +449,7 @@ export default function GroupsClient({ collections, createCollectionAction, assi
                   <th className="px-5 py-3 text-[10px] uppercase tracking-widest text-[#8a7660] font-medium">Login Email</th>
                   <th className="px-5 py-3 text-[10px] uppercase tracking-widest text-[#8a7660] font-medium text-center">Designs</th>
                   <th className="px-5 py-3 text-[10px] uppercase tracking-widest text-[#8a7660] font-medium">Created</th>
-                  <th className="px-5 py-3" />
+                  <th className="px-5 py-3 w-56" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f0e8d8]">
