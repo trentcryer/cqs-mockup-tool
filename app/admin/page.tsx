@@ -101,7 +101,7 @@ export default async function AdminPage() {
   // Shopify collections + Printful draft orders in parallel
   const [collectionsResult, draftOrdersResult] = await Promise.allSettled([
     listCollections(),
-    getPrintfulClient().getDraftOrders(),
+    Promise.resolve().then(() => getPrintfulClient().getDraftOrders()),
   ])
   const collections = collectionsResult.status === 'fulfilled' ? collectionsResult.value : []
   const draftOrders = draftOrdersResult.status === 'fulfilled'
