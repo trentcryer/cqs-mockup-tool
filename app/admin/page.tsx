@@ -103,7 +103,10 @@ export default async function AdminPage() {
   // Shopify collections + Printful draft orders in parallel
   const [collectionsResult, draftOrdersResult] = await Promise.allSettled([
     listCollections(),
-    Promise.resolve().then(() => getPrintfulClient().getDraftOrders()),
+    Promise.resolve().then(() => Promise.race([
+      getPrintfulClient().getDraftOrders(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Printful timeout')), 8000)),
+    ])),
   ])
   const collections = collectionsResult.status === 'fulfilled' ? collectionsResult.value : []
   const draftOrders = draftOrdersResult.status === 'fulfilled'
