@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { listCollections, createCollection, addToQuartetDirectory, deleteCollection } from '@/lib/shopify'
+import { sendMagicLinkEmail } from '@/lib/resend'
 import GroupsClient, { type CollectionRow } from './GroupsClient'
 
 export default async function GroupsPage() {
@@ -95,6 +96,14 @@ export default async function GroupsPage() {
     // Add to the quartets directory page on Shopify
     await addToQuartetDirectory(collectionTitle, newCollection.handle).catch(() => {})
 
+    // Email the magic link to the group
+    await sendMagicLinkEmail({
+      to: email,
+      magicLink: linkData.properties.action_link,
+      quartetName: collectionTitle,
+      isNewAccount: true,
+    }).catch(e => console.error('[CQS EMAIL] failed to send magic link:', e.message))
+
     revalidatePath('/admin/groups')
     return { magicLink: linkData.properties.action_link, collectionTitle }
   }
@@ -126,6 +135,14 @@ export default async function GroupsPage() {
       shopify_collection_title: collectionTitle,
     }, { onConflict: 'id' })
 
+    // Email the magic link to the group
+    await sendMagicLinkEmail({
+      to: email,
+      magicLink: linkData.properties.action_link,
+      quartetName: collectionTitle,
+      isNewAccount: true,
+    }).catch(e => console.error('[CQS EMAIL] failed to send magic link:', e.message))
+
     revalidatePath('/admin/groups')
     return { magicLink: linkData.properties.action_link, collectionTitle }
   }
@@ -145,6 +162,14 @@ export default async function GroupsPage() {
     if (linkErr || !linkData?.properties?.action_link) {
       return { error: linkErr?.message ?? 'Failed to generate link' }
     }
+
+    // Email the magic link to the group
+    await sendMagicLinkEmail({
+      to: email,
+      magicLink: linkData.properties.action_link,
+      isNewAccount: false,
+    }).catch(e => console.error('[CQS EMAIL] failed to send magic link:', e.message))
+
     return { magicLink: linkData.properties.action_link }
   }
 

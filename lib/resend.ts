@@ -15,6 +15,53 @@ function getResend() {
   return _resend
 }
 
+export async function sendMagicLinkEmail(params: {
+  to: string
+  magicLink: string
+  quartetName?: string
+  isNewAccount?: boolean
+}) {
+  const resend = getResend()
+  const from = process.env.RESEND_FROM_EMAIL || 'CQS Studio <studio@customquartetstuff.com>'
+  const subject = params.isNewAccount
+    ? 'Your Custom Quartet Stuff Studio account is ready'
+    : 'Your sign-in link for CQS Studio'
+
+  const greeting = params.quartetName ? `Hi ${params.quartetName},` : 'Hi,'
+  const intro = params.isNewAccount
+    ? "Your group's design studio account has been set up. Click the button below to sign in and start designing your merch."
+    : "Here's your sign-in link for CQS Mockup Studio. Click the button below to access your account."
+
+  const html = `
+    <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; background: #f7f3ee; color: #1c1412;">
+      <div style="background: #1c1412; color: #f7f3ee; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+        <h1 style="margin:0; font-size: 20px; letter-spacing: 0.5px;">Custom Quartet Stuff</h1>
+        <p style="margin: 4px 0 0; opacity: 0.75; font-size: 12px; letter-spacing: 2px;">MOCKUP STUDIO</p>
+      </div>
+      <div style="background: white; padding: 32px 24px; border-radius: 0 0 8px 8px; border: 1px solid #d4c5b0;">
+        <p style="margin-top:0; font-size: 15px;">${greeting}</p>
+        <p style="font-size: 14px; color: #4a3f35;">${intro}</p>
+        <div style="text-align:center; margin: 32px 0;">
+          <a href="${params.magicLink}"
+             style="display:inline-block; background:#1c1412; color:#f7f3ee; padding:14px 36px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px; letter-spacing:0.5px;">
+            Sign In to Studio →
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #8a7660; margin-bottom:0;">
+          This link expires in 24 hours and can only be used once. If you didn't expect this email, you can ignore it.
+        </p>
+      </div>
+      <p style="text-align:center; font-size:11px; color:#8a7660; margin-top:16px;">
+        Custom Quartet Stuff • Private group workspace
+      </p>
+    </div>
+  `
+
+  const result = await resend.emails.send({ from, to: params.to, subject, html })
+  if (result.error) throw new Error(`Resend error: ${result.error.message}`)
+  return result
+}
+
 interface ReviewRequestEmailParams {
   to: string
   quartetName: string
