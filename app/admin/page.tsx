@@ -57,17 +57,21 @@ export default async function AdminPage() {
     profiles: profileById[d.user_id] ?? null,
   }))
 
-  // Batch-sign canvas preview paths in one API call instead of one-per-design
+  // Sign canvas preview URLs + fetch kickback percentages in parallel
   const pathsToSign = designsWithProfiles
     .map((d: any) => d.canvas_preview_url)
     .filter((u: any) => u && !u.startsWith('http'))
+
+  const [signedData, kickbackResult] = await Promise.all([
+    pathsToSign.length > 0
+      ? admin.storage.from('cqs-assets').createSignedUrls(pathsToSign, 3600)
+      : Promise.resolve({ data: [] }),
+    admin.from('profiles').select('id, kickback_percentage').in('id', userIds.length ? userIds : ['__none__']).catch(() => ({ data: [] })),
+  ])
+
   const signedMap: Record<string, string> = {}
-  if (pathsToSign.length > 0) {
-    const { data: signedData } = await admin.storage.from('cqs-assets')
-      .createSignedUrls(pathsToSign, 3600)
-    for (const s of (signedData ?? [])) {
-      if (s.path && s.signedUrl) signedMap[s.path] = s.signedUrl
-    }
+  for (const s of ((signedData as any).data ?? [])) {
+    if (s.path && s.signedUrl) signedMap[s.path] = s.signedUrl
   }
   const designsWithSignedPreviews = designsWithProfiles.map((d: any) => ({
     ...d,
@@ -76,15 +80,10 @@ export default async function AdminPage() {
       : (signedMap[d.canvas_preview_url] ?? null),
   }))
 
-  // Fetch kickback_percentage separately — column may not exist yet
-  let kickbackMap: Record<string, number> = {}
-  try {
-    const { data: kb } = await admin.from('profiles')
-      .select('id, kickback_percentage').in('id', userIds.length ? userIds : ['__none__'])
-    for (const row of (kb ?? [])) {
-      kickbackMap[row.id] = row.kickback_percentage ?? 0
-    }
-  } catch { /* column not added yet — defaults to 0 */ }
+  const kickbackMap: Record<string, number> = {}
+  for (const row of ((kickbackResult as any).data ?? [])) {
+    kickbackMap[row.id] = row.kickback_percentage ?? 0
+  }
 
   // Deduplicate profiles for the Quartets section
   const profileMap = new Map()
@@ -99,25 +98,17 @@ export default async function AdminPage() {
   }
   const quartets = Array.from(profileMap.values())
 
-  // Shopify collections for the dropdown (graceful if not configured)
-  let collections = []
-  try {
-    collections = await listCollections()
-  } catch (e) {
-    console.error('[CQS COLLECTIONS] failed:', String(e))
-  }
-
-  // Printful draft orders awaiting confirmation
-  let draftOrders: any[] = []
-  try {
-    const pfClient = getPrintfulClient()
-    const allDrafts = await pfClient.getDraftOrders()
-    // Only show real customer orders — webhook-created drafts always have an external_id
-    // (Shopify order ID) and a fully populated recipient. Manual Printful drafts have neither.
-    draftOrders = allDrafts.filter(o => o.external_id && o.recipient.name && o.recipient.address1)
-  } catch (e: any) {
-    console.error('[CQS PRINTFUL] failed to fetch draft orders:', e?.message)
-  }
+  // Shopify collections + Printful draft orders in parallel
+  const [collectionsResult, draftOrdersResult] = await Promise.allSettled([
+    listCollections(),
+    getPrintfulClient().getDraftOrders(),
+  ])
+  const collections = collectionsResult.status === 'fulfilled' ? collectionsResult.value : []
+  const draftOrders = draftOrdersResult.status === 'fulfilled'
+    ? draftOrdersResult.value.filter((o: any) => o.external_id && o.recipient.name && o.recipient.address1)
+    : []
+  if (collectionsResult.status === 'rejected') console.error('[CQS COLLECTIONS] failed:', collectionsResult.reason)
+  if (draftOrdersResult.status === 'rejected') console.error('[CQS PRINTFUL] failed:', draftOrdersResult.reason?.message)
 
   // --- Server actions ---
 
