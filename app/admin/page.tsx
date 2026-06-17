@@ -62,12 +62,13 @@ export default async function AdminPage() {
     .map((d: any) => d.canvas_preview_url)
     .filter((u: any) => u && !u.startsWith('http'))
 
-  const [signedData, kickbackResult] = await Promise.all([
+  const [signedResult, kickbackResult] = await Promise.allSettled([
     pathsToSign.length > 0
       ? admin.storage.from('cqs-assets').createSignedUrls(pathsToSign, 3600)
       : Promise.resolve({ data: [] }),
-    admin.from('profiles').select('id, kickback_percentage').in('id', userIds.length ? userIds : ['__none__']).catch(() => ({ data: [] })),
+    admin.from('profiles').select('id, kickback_percentage').in('id', userIds.length ? userIds : ['__none__']),
   ])
+  const signedData = signedResult.status === 'fulfilled' ? signedResult.value : { data: [] }
 
   const signedMap: Record<string, string> = {}
   for (const s of ((signedData as any).data ?? [])) {
@@ -81,7 +82,8 @@ export default async function AdminPage() {
   }))
 
   const kickbackMap: Record<string, number> = {}
-  for (const row of ((kickbackResult as any).data ?? [])) {
+  const kickbackData = kickbackResult.status === 'fulfilled' ? (kickbackResult.value as any).data ?? [] : []
+  for (const row of kickbackData) {
     kickbackMap[row.id] = row.kickback_percentage ?? 0
   }
 
