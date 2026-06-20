@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -13,40 +13,6 @@ export default function LoginPage() {
   const [magicSent, setMagicSent] = useState(false)
   const router = useRouter()
   const supabase = createClient()
-
-  // Dev switcher — only visible when ENABLE_DEV_SWITCHER=true is set server-side
-  const [devCollections, setDevCollections] = useState<{ id: number; title: string }[]>([])
-  const [devSelected, setDevSelected] = useState('')
-  const [devSwitching, setDevSwitching] = useState(false)
-
-  useEffect(() => {
-    fetch('/api/dev/users')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.collections?.length) setDevCollections(data.collections) })
-      .catch(() => {})
-  }, [])
-
-  async function handleDevSwitch() {
-    if (!devSelected) return
-    setDevSwitching(true)
-    try {
-      const res = await fetch('/api/dev/switch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ collectionId: parseInt(devSelected) }),
-      })
-      const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        toast.error(data.error || 'No account linked to this collection yet')
-        setDevSwitching(false)
-      }
-    } catch {
-      toast.error('Dev switch failed')
-      setDevSwitching(false)
-    }
-  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -154,39 +120,6 @@ export default function LoginPage() {
         <p className="text-center text-[13px] mt-6 text-[#9b8c7a]">
           New here? <Link href="/signup" className="text-[#1c1412] underline underline-offset-2">Create your studio</Link>
         </p>
-
-        {/* Dev switcher — only renders when ENABLE_DEV_SWITCHER=true */}
-        {devCollections.length > 0 && (
-          <div className="mt-6 rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 p-5">
-            <p className="text-[9px] uppercase tracking-[2px] font-bold text-amber-700 mb-3">
-              ⚡ Dev Mode · Jump to Collection
-            </p>
-            <div className="flex gap-2">
-              <select
-                value={devSelected}
-                onChange={e => setDevSelected(e.target.value)}
-                className="flex-1 border border-amber-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-amber-400"
-              >
-                <option value="">Jump to Collection…</option>
-                {devCollections.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleDevSwitch}
-                disabled={!devSelected || devSwitching}
-                className="px-5 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 disabled:opacity-40 transition whitespace-nowrap"
-              >
-                {devSwitching ? '…' : 'Go →'}
-              </button>
-            </div>
-            <p className="text-[9px] text-amber-600 mt-2">
-              Logs you in as that group via magic link. Remove ENABLE_DEV_SWITCHER before launch.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   )
