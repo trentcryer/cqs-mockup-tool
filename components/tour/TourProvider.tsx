@@ -4,9 +4,9 @@ import { Joyride, EventData, STATUS, ACTIONS, Step } from 'react-joyride'
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 
-const DONE_KEY = 'cqs_tour_done'
-const PAGE_KEY = 'cqs_tour_page'  // which "chapter" of the tour we're on
-const MAX_PAGE = 4                 // pages 0–4; >MAX_PAGE = done
+const DONE_KEY = 'cqs_tour_done'   // localStorage: permanently disabled by user
+const PAGE_KEY = 'cqs_tour_page'   // sessionStorage: current chapter (resets each session)
+const MAX_PAGE = 4
 
 // ── Page-scoped step targets ──────────────────────────────────────────────────
 // Each page index maps to the exact data-tour targets for that chapter.
@@ -182,11 +182,11 @@ const ALL_STEPS: Step[] = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getTourPage(): number {
-  return parseInt(localStorage.getItem(PAGE_KEY) || '0', 10)
+  return parseInt(sessionStorage.getItem(PAGE_KEY) || '0', 10)
 }
 
 function setTourPageStorage(page: number) {
-  localStorage.setItem(PAGE_KEY, String(page))
+  sessionStorage.setItem(PAGE_KEY, String(page))
 }
 
 function getStepsForPage(page: number): Step[] {
@@ -237,14 +237,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setRun(false)
     setActive(false)
     localStorage.setItem(DONE_KEY, '1')
-    localStorage.removeItem(PAGE_KEY)
+    sessionStorage.removeItem(PAGE_KEY)
   }
 
-  // Launch for the current DOM. Auto-advances the page index until it finds
-  // steps that exist in the current DOM (handles cross-page navigation).
+  function pauseTour() {
+    setRun(false)
+  }
+
+  // Launch for the current DOM. Always fires unless permanently disabled.
+  // Uses sessionStorage for page index so each browser session restarts from 0.
   function launchTour() {
     if (typeof window === 'undefined') return
-    if (localStorage.getItem(DONE_KEY)) return
+    if (localStorage.getItem(DONE_KEY)) return  // user clicked "Don't show again"
 
     let page = getTourPage()
 
@@ -259,10 +263,11 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       }
       page++
     }
-    endTourPermanently()
+    // Finished all pages for this session — reset so it starts fresh next session
+    sessionStorage.removeItem(PAGE_KEY)
   }
 
-  // Auto-start / resume on mount
+  // Auto-start on every mount unless permanently disabled
   useEffect(() => {
     if (localStorage.getItem(DONE_KEY)) return
     const t = setTimeout(launchTour, 1200)
@@ -299,15 +304,15 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     const { action, status, type, step } = data
 
 
-    // Skip → end permanently
+    // "Don't show again" (Skip button) → permanently disable
     if (action === ACTIONS.SKIP || status === STATUS.SKIPPED) {
       endTourPermanently()
       return
     }
 
-    // Overlay or X dismissed → just pause, keep page index where it is
+    // X close → pause for this session, auto-launches again next visit
     if (action === ACTIONS.CLOSE && status !== STATUS.FINISHED) {
-      setRun(false)
+      pauseTour()
       return
     }
 
@@ -316,7 +321,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       setRun(false)
       const nextPage = getTourPage() + 1
       if (nextPage > MAX_PAGE) {
-        endTourPermanently()
+        sessionStorage.removeItem(PAGE_KEY)  // reset for next session
       } else {
         setTourPageStorage(nextPage)
         // activeRef stays true; next navigation triggers re-launch for next page
@@ -337,27 +342,83 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           showProgress: true,
           buttons: ['back', 'close', 'primary', 'skip'],
           primaryColor: '#1c1412',
-          overlayColor: 'rgba(0,0,0,0.45)',
+          textColor: '#1c1412',
+          arrowColor: '#ffffff',
+          overlayColor: 'rgba(28,20,18,0.5)',
           zIndex: 9999,
         }}
         styles={{
+          tooltip: {
+            backgroundColor: '#ffffff',
+            border: '1px solid #e8e0d8',
+            borderRadius: 4,
+            boxShadow: '0 6px 24px rgba(28,20,18,0.14), 0 2px 8px rgba(28,20,18,0.06)',
+            padding: '22px 24px',
+            maxWidth: 360,
+            fontFamily: 'var(--font-inter), system-ui, sans-serif',
+          },
+          tooltipContainer: {
+            textAlign: 'left',
+            lineHeight: 1.5,
+          },
+          tooltipTitle: {
+            fontFamily: 'var(--font-playfair), Georgia, serif',
+            fontSize: 18,
+            fontWeight: 700,
+            letterSpacing: '-0.3px',
+            color: '#1c1412',
+            margin: '0 0 8px',
+          },
+          tooltipContent: {
+            fontSize: 14,
+            color: 'rgba(28,20,18,0.75)',
+            padding: '4px 0 16px',
+          },
+          tooltipFooter: {
+            marginTop: 4,
+          },
           buttonPrimary: {
             backgroundColor: '#1c1412',
+            color: '#ffffff',
             borderRadius: 4,
             fontSize: 13,
-            padding: '8px 18px',
+            fontWeight: 600,
+            letterSpacing: '0.3px',
+            padding: '9px 20px',
           },
-          buttonBack: { color: '#9b8c7a', fontSize: 13 },
-          buttonSkip: { color: '#9b8c7a', fontSize: 12 },
-          tooltip: { borderRadius: 6, fontSize: 14, padding: '18px 22px', maxWidth: 340 },
-          tooltipTitle: { fontSize: 15, fontWeight: 700, marginBottom: 8 },
+          buttonBack: {
+            color: '#9b8c7a',
+            fontSize: 13,
+            fontWeight: 500,
+            marginRight: 12,
+          },
+          buttonSkip: {
+            color: '#9b8c7a',
+            fontSize: 12,
+            textDecoration: 'underline',
+            textUnderlineOffset: '2px',
+          },
+          buttonClose: {
+            color: '#9b8c7a',
+            width: 13,
+            height: 13,
+            top: 16,
+            right: 16,
+          },
+          beaconInner: {
+            backgroundColor: '#1c1412',
+          },
+          beaconOuter: {
+            backgroundColor: 'rgba(28,20,18,0.2)',
+            border: '2px solid #1c1412',
+          },
         }}
         locale={{
           back: '← Back',
           close: 'Close',
           last: 'Got it ✓',
           next: 'Next →',
-          skip: 'Skip tour',
+          skip: "Don't show again",
         }}
       />
       {children}
