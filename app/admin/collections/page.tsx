@@ -14,9 +14,17 @@ export default async function CollectionsPage() {
 
   let collections: any[] = []
   try {
-    collections = await listCollections()
+    collections = await Promise.race([
+      listCollections(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Shopify collections timeout')), 8000)),
+    ])
   } catch (e) {
-    console.error('[CQS SHOPIFY]', e)
+    console.error('[CQS SHOPIFY] full collection fetch timed out, falling back without images:', e)
+    try {
+      collections = await listCollections(true)
+    } catch (e2) {
+      console.error('[CQS SHOPIFY]', e2)
+    }
   }
 
   // Build a map of collectionId → signed logo URL from Supabase designs
