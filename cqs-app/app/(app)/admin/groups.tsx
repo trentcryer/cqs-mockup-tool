@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator,
-  StyleSheet, Alert, Modal,
+  StyleSheet, Alert, Modal, TextInput,
 } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 import { apiFetch, ApiError } from '@/lib/api'
 
 interface UserRow {
@@ -28,6 +29,15 @@ export default function AdminGroupsScreen() {
   const [active, setActive] = useState<UserRow | null>(null)
   const [selectedCollectionId, setSelectedCollectionId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const [resending, setResending] = useState(false)
+
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [newGroupEmail, setNewGroupEmail] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [createdLink, setCreatedLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +63,58 @@ export default function AdminGroupsScreen() {
   function openUser(u: UserRow) {
     setActive(u)
     setSelectedCollectionId(u.shopify_collection_id ?? null)
+  }
+
+  function openCreate() {
+    setNewGroupName('')
+    setNewGroupEmail('')
+    setCreateError('')
+    setCreatedLink(null)
+    setCopied(false)
+    setCreateOpen(true)
+  }
+
+  async function createGroup() {
+    if (!newGroupName.trim() || !newGroupEmail.trim()) {
+      setCreateError('Group name and email are required')
+      return
+    }
+    setCreating(true)
+    setCreateError('')
+    try {
+      const res = await apiFetch<{ magicLink: string; collectionTitle: string }>('/api/admin/groups/create', {
+        method: 'POST',
+        body: JSON.stringify({ collectionTitle: newGroupName.trim(), email: newGroupEmail.trim() }),
+      })
+      setCreatedLink(res.magicLink)
+      load()
+    } catch (e) {
+      setCreateError(e instanceof ApiError ? e.message : 'Please try again')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function copyCreatedLink() {
+    if (!createdLink) return
+    await Clipboard.setStringAsync(createdLink)
+    setCopied(true)
+  }
+
+  async function resendLink() {
+    if (!active) return
+    setResending(true)
+    try {
+      await apiFetch('/api/admin/groups/resend-link', {
+        method: 'POST',
+        body: JSON.stringify({ email: active.email }),
+      })
+      Alert.alert('Link sent', `A new sign-in link was emailed to ${active.email}.`)
+    } catch (e) {
+      Alert.alert('Resend failed', e instanceof ApiError ? e.message : 'Please try again')
+    } finally {
+      setResending(false)
+    }
   }
 
   async function saveAssignment() {
@@ -88,6 +150,10 @@ export default function AdminGroupsScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        <Pressable style={styles.newGroupBtn} onPress={openCreate}>
+          <Text style={styles.newGroupBtnText}>+ New Group</Text>
+        </Pressable>
+
         {users.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyBody}>No groups found.</Text>
@@ -148,6 +214,72 @@ export default function AdminGroupsScreen() {
                   >
                     {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Assignment</Text>}
                   </Pressable>
+
+                  <Pressable
+                    style={[styles.resendBtn, resending && styles.btnDisabled]}
+                    disabled={resending}
+                    onPress={resendLink}
+                  >
+                    {resending ? <ActivityIndicator color="#1c1412" /> : <Text style={styles.resendBtnText}>Resend Magic Link</Text>}
+                  </Pressable>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={createOpen} animationType="slide" transparent onRequestClose={() => setCreateOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <ScrollView contentContainerStyle={{ padding: 20 }}>
+              <Pressable onPress={() => setCreateOpen(false)} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>Close</Text>
+              </Pressable>
+
+              <Text style={styles.modalTitle}>New Group</Text>
+
+              {createdLink ? (
+                <>
+                  <Text style={styles.successText}>✓ Link generated & emailed</Text>
+                  <Text style={styles.successSubtext}>Copy as backup if needed.</Text>
+                  <Pressable style={styles.saveBtn} onPress={copyCreatedLink}>
+                    <Text style={styles.saveBtnText}>{copied ? 'Copied!' : 'Copy Link'}</Text>
+                  </Pressable>
+                  <Pressable style={styles.closeBtnLarge} onPress={() => setCreateOpen(false)}>
+                    <Text style={styles.closeBtnLargeText}>Done</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.label}>Group / Collection Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newGroupName}
+                    onChangeText={setNewGroupName}
+                    placeholder="e.g. The Sound Wave Quartet"
+                    autoCapitalize="words"
+                  />
+
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newGroupEmail}
+                    onChangeText={setNewGroupEmail}
+                    placeholder="group@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+
+                  {!!createError && <Text style={styles.errorText}>{createError}</Text>}
+
+                  <Pressable
+                    style={[styles.saveBtn, creating && styles.btnDisabled]}
+                    disabled={creating}
+                    onPress={createGroup}
+                  >
+                    {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Create & Send Invite</Text>}
+                  </Pressable>
                 </>
               )}
             </ScrollView>
@@ -184,4 +316,14 @@ const styles = StyleSheet.create({
   saveBtn: { backgroundColor: '#1c1412', borderRadius: 4, paddingVertical: 14, alignItems: 'center', marginTop: 24, marginBottom: 24 },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 14, letterSpacing: 0.3 },
   btnDisabled: { opacity: 0.5 },
+  newGroupBtn: { backgroundColor: '#1c1412', borderRadius: 4, paddingVertical: 12, alignItems: 'center', marginBottom: 16 },
+  newGroupBtnText: { color: '#fff', fontWeight: '700', fontSize: 14, letterSpacing: 0.3 },
+  resendBtn: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#1c1412', borderRadius: 4, paddingVertical: 14, alignItems: 'center', marginTop: 0, marginBottom: 24 },
+  resendBtnText: { color: '#1c1412', fontWeight: '600', fontSize: 14 },
+  input: { borderWidth: 1, borderColor: '#e8e0d8', borderRadius: 4, padding: 12, fontSize: 14, color: '#1c1412', backgroundColor: '#faf9f7', marginBottom: 4 },
+  errorText: { color: '#9b1c1c', fontSize: 13, marginTop: 12 },
+  successText: { color: '#1c1412', fontSize: 16, fontWeight: '700', marginTop: 20 },
+  successSubtext: { color: '#9b8c7a', fontSize: 13, marginTop: 4, marginBottom: 8 },
+  closeBtnLarge: { alignItems: 'center', paddingVertical: 12, marginBottom: 24 },
+  closeBtnLargeText: { color: '#9b8c7a', fontSize: 13, fontWeight: '600' },
 })
