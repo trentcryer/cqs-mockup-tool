@@ -19,7 +19,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers })
+  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers, signal: AbortSignal.timeout(15_000) })
   const body = await res.json().catch(() => null)
 
   if (!res.ok) {
@@ -35,7 +35,7 @@ export async function apiUploadBinary(path: string, formData: FormData): Promise
   const headers: Record<string, string> = {}
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', headers, body: formData })
+  const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', headers, body: formData, signal: AbortSignal.timeout(30_000) })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
     throw new ApiError(body?.error || res.statusText, res.status)
