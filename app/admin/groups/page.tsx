@@ -59,7 +59,7 @@ export default async function GroupsPage() {
 
   async function createCollectionAndAccount(
     fd: FormData
-  ): Promise<{ magicLink: string; collectionTitle: string } | { error: string }> {
+  ): Promise<{ magicLink: string; collectionTitle: string; emailSent: boolean; emailError?: string } | { error: string }> {
     'use server'
     const collectionTitle = (fd.get('collectionTitle') as string).trim()
     const email = (fd.get('email') as string).trim().toLowerCase()
@@ -97,20 +97,28 @@ export default async function GroupsPage() {
     await addToQuartetDirectory(collectionTitle, newCollection.handle).catch(() => {})
 
     // Email the magic link to the group
-    await sendMagicLinkEmail({
-      to: email,
-      magicLink: linkData.properties.action_link,
-      quartetName: collectionTitle,
-      isNewAccount: true,
-    }).catch(e => console.error('[CQS EMAIL] failed to send magic link:', e.message))
+    let emailSent = true
+    let emailError: string | undefined
+    try {
+      await sendMagicLinkEmail({
+        to: email,
+        magicLink: linkData.properties.action_link,
+        quartetName: collectionTitle,
+        isNewAccount: true,
+      })
+    } catch (e: any) {
+      emailSent = false
+      emailError = e.message
+      console.error('[CQS EMAIL] failed to send magic link:', e.message)
+    }
 
     revalidatePath('/admin/groups')
-    return { magicLink: linkData.properties.action_link, collectionTitle }
+    return { magicLink: linkData.properties.action_link, collectionTitle, emailSent, emailError }
   }
 
   async function assignEmail(
     fd: FormData
-  ): Promise<{ magicLink: string; collectionTitle: string } | { error: string }> {
+  ): Promise<{ magicLink: string; collectionTitle: string; emailSent: boolean; emailError?: string } | { error: string }> {
     'use server'
     const collectionId = parseInt(fd.get('collectionId') as string)
     const collectionTitle = fd.get('collectionTitle') as string
@@ -136,20 +144,28 @@ export default async function GroupsPage() {
     }, { onConflict: 'id' })
 
     // Email the magic link to the group
-    await sendMagicLinkEmail({
-      to: email,
-      magicLink: linkData.properties.action_link,
-      quartetName: collectionTitle,
-      isNewAccount: true,
-    }).catch(e => console.error('[CQS EMAIL] failed to send magic link:', e.message))
+    let emailSent = true
+    let emailError: string | undefined
+    try {
+      await sendMagicLinkEmail({
+        to: email,
+        magicLink: linkData.properties.action_link,
+        quartetName: collectionTitle,
+        isNewAccount: true,
+      })
+    } catch (e: any) {
+      emailSent = false
+      emailError = e.message
+      console.error('[CQS EMAIL] failed to send magic link:', e.message)
+    }
 
     revalidatePath('/admin/groups')
-    return { magicLink: linkData.properties.action_link, collectionTitle }
+    return { magicLink: linkData.properties.action_link, collectionTitle, emailSent, emailError }
   }
 
   async function generateMagicLink(
     fd: FormData
-  ): Promise<{ magicLink: string } | { error: string }> {
+  ): Promise<{ magicLink: string; emailSent: boolean; emailError?: string } | { error: string }> {
     'use server'
     const email = (fd.get('email') as string).trim().toLowerCase()
     if (!email) return { error: 'No email on file' }
@@ -164,13 +180,21 @@ export default async function GroupsPage() {
     }
 
     // Email the magic link to the group
-    await sendMagicLinkEmail({
-      to: email,
-      magicLink: linkData.properties.action_link,
-      isNewAccount: false,
-    }).catch(e => console.error('[CQS EMAIL] failed to send magic link:', e.message))
+    let emailSent = true
+    let emailError: string | undefined
+    try {
+      await sendMagicLinkEmail({
+        to: email,
+        magicLink: linkData.properties.action_link,
+        isNewAccount: false,
+      })
+    } catch (e: any) {
+      emailSent = false
+      emailError = e.message
+      console.error('[CQS EMAIL] failed to send magic link:', e.message)
+    }
 
-    return { magicLink: linkData.properties.action_link }
+    return { magicLink: linkData.properties.action_link, emailSent, emailError }
   }
 
   async function deleteGroup(fd: FormData) {

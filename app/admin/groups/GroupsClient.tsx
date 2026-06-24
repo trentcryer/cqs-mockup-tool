@@ -18,9 +18,9 @@ export interface CollectionRow {
 
 interface Props {
   collections: CollectionRow[]
-  createCollectionAction: (fd: FormData) => Promise<{ magicLink: string; collectionTitle: string } | { error: string }>
-  assignEmailAction: (fd: FormData) => Promise<{ magicLink: string; collectionTitle: string } | { error: string }>
-  generateLinkAction: (fd: FormData) => Promise<{ magicLink: string } | { error: string }>
+  createCollectionAction: (fd: FormData) => Promise<{ magicLink: string; collectionTitle: string; emailSent: boolean; emailError?: string } | { error: string }>
+  assignEmailAction: (fd: FormData) => Promise<{ magicLink: string; collectionTitle: string; emailSent: boolean; emailError?: string } | { error: string }>
+  generateLinkAction: (fd: FormData) => Promise<{ magicLink: string; emailSent: boolean; emailError?: string } | { error: string }>
   deleteAction: (fd: FormData) => Promise<void>
   bulkDeleteAction: (fd: FormData) => Promise<void>
 }
@@ -40,7 +40,35 @@ function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) 
   )
 }
 
-function MagicLinkBanner({ link, title, onDismiss }: { link: string; title: string; onDismiss: () => void }) {
+function MagicLinkBanner({ link, title, emailSent, emailError, onDismiss }: {
+  link: string
+  title: string
+  emailSent: boolean
+  emailError?: string
+  onDismiss: () => void
+}) {
+  if (!emailSent) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-amber-800">
+              Link created, but the email failed to send for <span className="font-bold">{title}</span>
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              {emailError ? `Error: ${emailError}. ` : ''}Copy the link below and send it manually — it expires in 1 hour.
+            </p>
+          </div>
+          <button onClick={onDismiss} className="text-xs text-amber-700 hover:underline shrink-0">Dismiss</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs font-mono text-amber-900 truncate">{link}</div>
+          <CopyButton text={link} label="Copy Link" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
@@ -107,7 +135,7 @@ function CreateCollectionCard({ createCollectionAction }: { createCollectionActi
   const [collectionName, setCollectionName] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ magicLink: string; collectionTitle: string } | null>(null)
+  const [result, setResult] = useState<{ magicLink: string; collectionTitle: string; emailSent: boolean; emailError?: string } | null>(null)
 
   function handleSubmit() {
     if (!collectionName.trim() || !email.trim()) return
@@ -130,7 +158,7 @@ function CreateCollectionCard({ createCollectionAction }: { createCollectionActi
         <p className="text-xs text-[#6b5f54] mt-0.5">Creates the Shopify collection, the studio account, and a sign-in link — all at once.</p>
       </div>
       <div className="px-5 py-4 space-y-4">
-        {result && <MagicLinkBanner link={result.magicLink} title={result.collectionTitle} onDismiss={() => setResult(null)} />}
+        {result && <MagicLinkBanner link={result.magicLink} title={result.collectionTitle} emailSent={result.emailSent} emailError={result.emailError} onDismiss={() => setResult(null)} />}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs font-medium text-[#6b5f54]">Collection Name</label>
@@ -172,7 +200,7 @@ function AssignEmailRow({ collection, isSelected, onToggle, assignEmailAction, d
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ magicLink: string; collectionTitle: string } | null>(null)
+  const [result, setResult] = useState<{ magicLink: string; collectionTitle: string; emailSent: boolean; emailError?: string } | null>(null)
 
   function handleAssign() {
     if (!email.trim()) return
@@ -223,7 +251,7 @@ function AssignEmailRow({ collection, isSelected, onToggle, assignEmailAction, d
 
       {result && (
         <div className="px-5 pb-4">
-          <MagicLinkBanner link={result.magicLink} title={result.collectionTitle} onDismiss={() => setResult(null)} />
+          <MagicLinkBanner link={result.magicLink} title={result.collectionTitle} emailSent={result.emailSent} emailError={result.emailError} onDismiss={() => setResult(null)} />
         </div>
       )}
 
@@ -259,14 +287,14 @@ function ActiveAccountRow({ collection, isSelected, onToggle, generateLinkAction
 }) {
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [magicLink, setMagicLink] = useState<string | null>(null)
+  const [result, setResult] = useState<{ magicLink: string; emailSent: boolean; emailError?: string } | null>(null)
 
   function handleResendLink() {
     const fd = new FormData()
     fd.set('email', collection.account!.email)
     startTransition(async () => {
       const res = await generateLinkAction(fd)
-      if ('magicLink' in res) setMagicLink(res.magicLink)
+      if ('magicLink' in res) setResult(res)
     })
   }
 
@@ -322,14 +350,24 @@ function ActiveAccountRow({ collection, isSelected, onToggle, generateLinkAction
           </div>
         </td>
       </tr>
-      {magicLink && (
+      {result && (
         <tr>
           <td colSpan={6} className="px-5 pb-3">
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              <span className="text-xs text-green-700 font-medium flex-1">✓ Link generated & emailed — copy as backup if needed</span>
-              <CopyButton text={magicLink} label="Copy Link" />
-              <button onClick={() => setMagicLink(null)} className="text-xs text-green-600 hover:underline ml-1">✕</button>
-            </div>
+            {result.emailSent ? (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <span className="text-xs text-green-700 font-medium flex-1">✓ Link generated & emailed — copy as backup if needed</span>
+                <CopyButton text={result.magicLink} label="Copy Link" />
+                <button onClick={() => setResult(null)} className="text-xs text-green-600 hover:underline ml-1">✕</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <span className="text-xs text-amber-700 font-medium flex-1">
+                  Link generated, but the email failed to send{result.emailError ? ` (${result.emailError})` : ''} — copy and send manually
+                </span>
+                <CopyButton text={result.magicLink} label="Copy Link" />
+                <button onClick={() => setResult(null)} className="text-xs text-amber-700 hover:underline ml-1">✕</button>
+              </div>
+            )}
           </td>
         </tr>
       )}
