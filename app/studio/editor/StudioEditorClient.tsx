@@ -740,11 +740,9 @@ export default function StudioEditorClient({
                   </div>
                   <img src={logoPreviewUrl} alt="Logo" style={logoOverlayStyle} />
                 </div>
-                {template.background_url && (
-                  <img src={template.background_url} alt=""
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ mixBlendMode: 'multiply' }} />
-                )}
+                {/* No background_url (heather/tri-blend fabric swatch) overlay: multiplying it over the
+                    white-bg ghost flooded the whole preview with the fabric color. The true garment color
+                    is shown in the rendered Product Mockup below; this live preview is for logo placement. */}
               </div>
             ) : !logoPreviewUrl ? (
               <div className="w-full aspect-[3/4] rounded-2xl border-2 border-dashed border-[#d4c5b0] bg-[#f9f6f0] flex items-center justify-center text-center px-8">

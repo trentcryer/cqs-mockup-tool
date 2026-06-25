@@ -119,11 +119,7 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
                 }}>
                   <img src={logoSignedUrl} alt="Logo" style={origStyle} />
                 </div>
-                {template.background_url && (
-                  <img src={template.background_url} alt=""
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ mixBlendMode: 'multiply' }} />
-                )}
+                {/* No background_url swatch overlay — it flooded heather/tri-blend previews. See live preview note. */}
               </div>
             ) : canvasPreviewUrl ? (
               <img src={canvasPreviewUrl} alt="Customer placement"
@@ -162,15 +158,8 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
                 <img src={logoSignedUrl} alt="Logo" style={logoStyle} />
               </div>
 
-              {/* Fabric detail/shadow overlay on top */}
-              {template.background_url && (
-                <img
-                  src={template.background_url}
-                  alt=""
-                  className="absolute inset-0 w-full h-full pointer-events-none"
-                  style={{ mixBlendMode: 'multiply' }}
-                />
-              )}
+              {/* No background_url swatch overlay — multiplying the heather/tri-blend fabric swatch over the
+                  white-bg ghost flooded the whole preview with the fabric color. True color is in the rendered mockup. */}
             </div>
           ) : (
             <div className="w-full aspect-square rounded-xl border border-dashed border-[#d4c5b0] bg-[#f9f6f0] flex items-center justify-center text-center px-6 text-sm text-[#8a7660]">
