@@ -107,9 +107,10 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
               pointerEvents: 'none',
             }
             return template && logoSignedUrl ? (
-              <div className="relative w-full rounded-xl overflow-hidden border border-[#d4c5b0] shadow-sm"
-                style={{ backgroundColor: template.background_color || undefined }}>
-                <img src={template.image_url} alt="Garment" className="w-full block" />
+              <div className="relative w-full rounded-xl overflow-hidden border border-[#d4c5b0] shadow-sm">
+                {/* Base = actual colored garment photo (background_url, full-frame JPEG per color);
+                    fall back to the ghost template image when Printful has no photo. */}
+                <img src={template.background_url || template.image_url} alt="Garment" className="w-full block" />
                 <div style={{
                   position: 'absolute',
                   top: `${(template.print_area_top / template.template_height) * 100}%`,
@@ -119,11 +120,6 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
                 }}>
                   <img src={logoSignedUrl} alt="Logo" style={origStyle} />
                 </div>
-                {template.background_url && (
-                  <img src={template.background_url} alt=""
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ mixBlendMode: 'multiply' }} />
-                )}
               </div>
             ) : canvasPreviewUrl ? (
               <img src={canvasPreviewUrl} alt="Customer placement"
@@ -145,9 +141,10 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
           {template && logoSignedUrl ? (
             <div
               className="relative w-full rounded-xl overflow-hidden border border-[#d4c5b0] shadow-sm"
-              style={{ backgroundColor: template.background_color || undefined }}
             >
-              <img src={template.image_url} alt="Garment" className="w-full block" />
+              {/* Base = actual colored garment photo (background_url, full-frame JPEG per color);
+                  fall back to the ghost template image when Printful has no photo. */}
+              <img src={template.background_url || template.image_url} alt="Garment" className="w-full block" />
 
               {/* Logo positioned within the print area */}
               <div
@@ -162,15 +159,6 @@ export default function AdminEditorClient({ design, canvasPreviewUrl, logoSigned
                 <img src={logoSignedUrl} alt="Logo" style={logoStyle} />
               </div>
 
-              {/* Fabric detail/shadow overlay on top */}
-              {template.background_url && (
-                <img
-                  src={template.background_url}
-                  alt=""
-                  className="absolute inset-0 w-full h-full pointer-events-none"
-                  style={{ mixBlendMode: 'multiply' }}
-                />
-              )}
             </div>
           ) : (
             <div className="w-full aspect-square rounded-xl border border-dashed border-[#d4c5b0] bg-[#f9f6f0] flex items-center justify-center text-center px-6 text-sm text-[#8a7660]">
