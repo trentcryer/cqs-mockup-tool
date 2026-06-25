@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import TawkChat from "@/components/TawkChat";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -43,6 +44,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#f7f3ee] text-[#2c2522]">
         {children}
         <Toaster position="top-center" richColors closeButton />
+        <TawkChat />
       </body>
     </html>
   );
