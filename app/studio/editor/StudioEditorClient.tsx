@@ -706,12 +706,8 @@ export default function StudioEditorClient({
               <span className="ml-2 text-blue-600 normal-case font-normal">● instant</span>
             </div>
             {template && logoPreviewUrl ? (
-              <div className="relative w-full overflow-hidden border border-[#e8e0d8] shadow-sm" style={{ borderRadius: 4 }}>
-                {/* Base layer = the actual colored garment photo (background_url, a full-frame JPEG per color).
-                    Fall back to the ghost template image when Printful provides no photo (e.g. inside-label placements).
-                    Previously the ghost (white-bg) was the base and background_url was multiplied over the whole box,
-                    which flooded the entire preview with the shirt color for darker/saturated colors. */}
-                <img src={template.background_url || template.image_url} alt="Garment" className="w-full block" />
+              <div className="relative w-full overflow-hidden border border-[#e8e0d8] shadow-sm" style={{ borderRadius: 4, backgroundColor: template.background_color || undefined }}>
+                <img src={template.image_url} alt="Garment" className="w-full block" />
                 <div style={{
                   position: 'absolute',
                   top: `${(template.print_area_top / template.template_height) * 100}%`,
@@ -744,6 +740,11 @@ export default function StudioEditorClient({
                   </div>
                   <img src={logoPreviewUrl} alt="Logo" style={logoOverlayStyle} />
                 </div>
+                {template.background_url && (
+                  <img src={template.background_url} alt=""
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    style={{ mixBlendMode: 'multiply' }} />
+                )}
               </div>
             ) : !logoPreviewUrl ? (
               <div className="w-full aspect-[3/4] rounded-2xl border-2 border-dashed border-[#d4c5b0] bg-[#f9f6f0] flex items-center justify-center text-center px-8">
