@@ -24,13 +24,14 @@ export async function sendMagicLinkEmail(params: {
   const resend = getResend()
   const from = process.env.RESEND_FROM_EMAIL || 'CQS Studio <studio@customquartetstuff.com>'
   const subject = params.isNewAccount
-    ? 'Your Custom Quartet Stuff Studio account is ready'
-    : 'Your sign-in link for CQS Studio'
+    ? 'Set up your Custom Quartet Stuff Studio'
+    : 'Your access link for CQS Studio'
 
   const greeting = params.quartetName ? `Hi ${params.quartetName},` : 'Hi,'
   const intro = params.isNewAccount
-    ? "Your group's design studio account has been set up. Click the button below to sign in and start designing your merch."
-    : "Here's your sign-in link for CQS Mockup Studio. Click the button below to access your account."
+    ? "Your group's design studio is ready and your designs are already waiting inside. Click below to choose a password and activate your account — it takes about 10 seconds."
+    : "Here's your access link for CQS Mockup Studio. Click below to set a password and get into your studio."
+  const buttonText = params.isNewAccount ? 'Activate Your Studio →' : 'Access Your Studio →'
 
   const html = `
     <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; background: #f7f3ee; color: #1c1412;">
@@ -44,11 +45,11 @@ export async function sendMagicLinkEmail(params: {
         <div style="text-align:center; margin: 32px 0;">
           <a href="${params.magicLink}"
              style="display:inline-block; background:#1c1412; color:#f7f3ee; padding:14px 36px; border-radius:6px; text-decoration:none; font-weight:600; font-size:14px; letter-spacing:0.5px;">
-            Sign In to Studio →
+            ${buttonText}
           </a>
         </div>
         <p style="font-size: 12px; color: #8a7660; margin-bottom:0;">
-          This link expires in 24 hours and can only be used once. If you didn't expect this email, you can ignore it.
+          This link can only be used once and expires for security. If it's expired, reply and we'll send a fresh one. If you didn't expect this email, you can ignore it.
         </p>
       </div>
       <p style="text-align:center; font-size:11px; color:#8a7660; margin-top:16px;">

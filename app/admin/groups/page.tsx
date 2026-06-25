@@ -1,10 +1,33 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { listCollections, createCollection, addToQuartetDirectory, deleteCollection } from '@/lib/shopify'
 import { sendMagicLinkEmail } from '@/lib/resend'
 import GroupsClient, { type CollectionRow } from './GroupsClient'
+
+/**
+ * Build the branded activation link the group clicks from their invite email.
+ *
+ * We do NOT email Supabase's raw action_link: that link redirects with the session
+ * in a URL fragment, which our SSR cookie flow can't read, so groups land on /login
+ * un-signed-in and instinctively create a NEW (unlinked) account. Instead we hand the
+ * group our own /claim page and pass the single-use hashed_token; /claim verifies it
+ * server-side (verifyOtp) to sign them into their EXISTING linked account, then sets
+ * a password. No Supabase redirect-URL allowlisting required.
+ */
+async function buildClaimLink(hashedToken: string, group: string, email: string) {
+  let origin = process.env.NEXT_PUBLIC_SITE_URL
+  if (!origin) {
+    const h = await headers()
+    const host = h.get('x-forwarded-host') ?? h.get('host')
+    const proto = h.get('x-forwarded-proto') ?? 'https'
+    origin = host ? `${proto}://${host}` : 'http://localhost:3000'
+  }
+  const params = new URLSearchParams({ token_hash: hashedToken, group, email })
+  return `${origin.replace(/\/$/, '')}/claim?${params.toString()}`
+}
 
 export default async function GroupsPage() {
   const supabase = await createClient()
@@ -96,13 +119,16 @@ export default async function GroupsPage() {
     // Add to the quartets directory page on Shopify
     await addToQuartetDirectory(collectionTitle, newCollection.handle).catch(() => {})
 
-    // Email the magic link to the group
+    // Branded activation link → /claim (verifies token, sets password, signs into linked studio)
+    const claimLink = await buildClaimLink(linkData.properties.hashed_token, collectionTitle, email)
+
+    // Email the activation link to the group
     let emailSent = true
     let emailError: string | undefined
     try {
       await sendMagicLinkEmail({
         to: email,
-        magicLink: linkData.properties.action_link,
+        magicLink: claimLink,
         quartetName: collectionTitle,
         isNewAccount: true,
       })
@@ -113,7 +139,7 @@ export default async function GroupsPage() {
     }
 
     revalidatePath('/admin/groups')
-    return { magicLink: linkData.properties.action_link, collectionTitle, emailSent, emailError }
+    return { magicLink: claimLink, collectionTitle, emailSent, emailError }
   }
 
   async function assignEmail(
@@ -143,13 +169,16 @@ export default async function GroupsPage() {
       shopify_collection_title: collectionTitle,
     }, { onConflict: 'id' })
 
-    // Email the magic link to the group
+    // Branded activation link → /claim (verifies token, sets password, signs into linked studio)
+    const claimLink = await buildClaimLink(linkData.properties.hashed_token, collectionTitle, email)
+
+    // Email the activation link to the group
     let emailSent = true
     let emailError: string | undefined
     try {
       await sendMagicLinkEmail({
         to: email,
-        magicLink: linkData.properties.action_link,
+        magicLink: claimLink,
         quartetName: collectionTitle,
         isNewAccount: true,
       })
@@ -160,7 +189,7 @@ export default async function GroupsPage() {
     }
 
     revalidatePath('/admin/groups')
-    return { magicLink: linkData.properties.action_link, collectionTitle, emailSent, emailError }
+    return { magicLink: claimLink, collectionTitle, emailSent, emailError }
   }
 
   async function generateMagicLink(
@@ -179,13 +208,24 @@ export default async function GroupsPage() {
       return { error: linkErr?.message ?? 'Failed to generate link' }
     }
 
-    // Email the magic link to the group
+    // Look up the group's name so the activation page can show it
+    const { data: prof } = await (a.from('profiles') as any)
+      .select('quartet_name')
+      .eq('email', email)
+      .maybeSingle()
+    const groupName = prof?.quartet_name || ''
+
+    // Branded activation link → /claim (verifies token, sets password, signs into linked studio)
+    const claimLink = await buildClaimLink(linkData.properties.hashed_token, groupName, email)
+
+    // Email the activation link to the group
     let emailSent = true
     let emailError: string | undefined
     try {
       await sendMagicLinkEmail({
         to: email,
-        magicLink: linkData.properties.action_link,
+        magicLink: claimLink,
+        quartetName: groupName || undefined,
         isNewAccount: false,
       })
     } catch (e: any) {
@@ -194,7 +234,7 @@ export default async function GroupsPage() {
       console.error('[CQS EMAIL] failed to send magic link:', e.message)
     }
 
-    return { magicLink: linkData.properties.action_link, emailSent, emailError }
+    return { magicLink: claimLink, emailSent, emailError }
   }
 
   async function deleteGroup(fd: FormData) {
