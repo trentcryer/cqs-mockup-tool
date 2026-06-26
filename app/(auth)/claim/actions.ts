@@ -28,6 +28,13 @@ export async function activateAccount(_prev: ClaimState, formData: FormData): Pr
 
   const supabase = await createClient()
 
+  // If already logged in as a different user, sign them out first so we can
+  // verify the magic link for the group account.
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  if (currentUser) {
+    await supabase.auth.signOut()
+  }
+
   // Verify the magic-link token → signs into the existing linked account (sets cookies).
   const { error: verifyErr } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' })
   if (verifyErr) {

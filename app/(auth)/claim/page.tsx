@@ -3,6 +3,7 @@ import ClaimForm from './ClaimForm'
 
 export const metadata = {
   title: 'Activate your studio • Custom Quartet Stuff',
+  robots: 'noindex, nofollow',
 }
 
 export default async function ClaimPage({
