@@ -153,6 +153,17 @@ export default async function GroupsPage() {
 
     const a = createAdminClient()
 
+    // Check if a profile already exists for this email. If so, use that user ID
+    // (which may not have an auth account yet). This preserves their existing
+    // designs/inventory. If no profile exists, generateLink creates a new user.
+    let existingProfile: any = null
+    try {
+      const { data } = await (a.from('profiles').select('id').eq('email', email) as any).single()
+      existingProfile = data
+    } catch {
+      // No existing profile — generateLink will create a new user
+    }
+
     const { data: linkData, error: linkErr } = await (a.auth.admin as any).generateLink({
       type: 'magiclink',
       email,
@@ -161,13 +172,23 @@ export default async function GroupsPage() {
       return { error: linkErr?.message ?? 'Failed to generate sign-in link' }
     }
 
-    await (a.from('profiles') as any).upsert({
-      id: linkData.user.id,
-      email,
-      quartet_name: collectionTitle,
-      shopify_collection_id: collectionId,
-      shopify_collection_title: collectionTitle,
-    }, { onConflict: 'id' })
+    // Link to collection. If an existing profile exists, preserve all their other data
+    // and only update the collection link. Otherwise, create a new profile.
+    const userId = existingProfile?.id || linkData.user.id
+    if (existingProfile) {
+      await (a.from('profiles') as any).update({
+        shopify_collection_id: collectionId,
+        shopify_collection_title: collectionTitle,
+      }).eq('id', userId)
+    } else {
+      await (a.from('profiles') as any).upsert({
+        id: userId,
+        email,
+        quartet_name: collectionTitle,
+        shopify_collection_id: collectionId,
+        shopify_collection_title: collectionTitle,
+      }, { onConflict: 'id' })
+    }
 
     // Branded activation link → /claim (verifies token, sets password, signs into linked studio)
     const claimLink = await buildClaimLink(linkData.properties.hashed_token, collectionTitle, email)

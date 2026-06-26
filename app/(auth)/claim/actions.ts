@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export type ClaimState = { error?: string }
 
@@ -45,6 +45,32 @@ export async function activateAccount(_prev: ClaimState, formData: FormData): Pr
   const { error: pwErr } = await supabase.auth.updateUser({ password })
   if (pwErr) {
     return { error: pwErr.message }
+  }
+
+  // After verifyOtp, we're now authenticated. Check if this email had an existing
+  // profile with old designs/inventory that need to be migrated to this new user.
+  // (This can happen when we generate a link for an existing group that never had
+  // a password set — they get a new auth user, but had an old profile.)
+  const { data: { user: newUser } } = await supabase.auth.getUser()
+  if (newUser && newUser.email) {
+    const { data: oldProfiles } = await (supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', newUser.email as string)
+      .neq('id', newUser.id) as any)
+      .limit(1)
+
+    if (oldProfiles?.length) {
+      const oldProfileId = oldProfiles[0].id
+      // Migrate the old profile's data to the new user
+      const admin = createAdminClient()
+      await (admin.from('designs') as any)
+        .update({ user_id: newUser.id })
+        .eq('user_id', oldProfileId)
+      await (admin.from('profiles') as any)
+        .delete()
+        .eq('id', oldProfileId)
+    }
   }
 
   redirect('/studio')
