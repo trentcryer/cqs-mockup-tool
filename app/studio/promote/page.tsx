@@ -17,6 +17,8 @@ export default async function StudioPromotePage() {
 
   const collectionId = (profile as any)?.shopify_collection_id
   const groupName = (profile as any)?.quartet_name || 'My Group'
+  const facebookPageId = (profile as any)?.facebook_page_id || null
+  const facebookPageName = (profile as any)?.facebook_page_name || null
 
   const collections = collectionId ? await listCollections(true).catch(() => []) : []
   const collection = collections.find(c => c.id === collectionId)
@@ -63,7 +65,18 @@ export default async function StudioPromotePage() {
         <p className="text-sm text-[#6b5f54]">Your group isn&apos;t linked to a collection yet — contact CQS to get set up.</p>
       )}
 
-      {collectionId && <PromoteBuilder groupName={groupName} products={products} collectionUrl={collectionUrl} logos={logos} />}
+      {collectionId && (
+        <div className="space-y-6">
+          <PromoteBuilder
+            groupName={groupName}
+            products={products}
+            collectionUrl={collectionUrl}
+            logos={logos}
+            facebookPageId={facebookPageId}
+            facebookPageName={facebookPageName}
+          />
+        </div>
+      )}
     </div>
   )
 }

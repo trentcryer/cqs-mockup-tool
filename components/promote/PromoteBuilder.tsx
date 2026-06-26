@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { PROMO_TEMPLATES, type PromoProduct } from '@/lib/promo/templates'
 import { PROMO_PLATFORMS } from '@/lib/promo/platforms'
 import { encodePromoData } from '@/lib/promo/encode'
+import FacebookPageSelector from './FacebookPageSelector'
 
 export interface PromoteProductOption extends PromoProduct {
   id: number
@@ -22,11 +23,15 @@ export default function PromoteBuilder({
   products,
   collectionUrl,
   logos = [],
+  facebookPageId = null,
+  facebookPageName = null,
 }: {
   groupName: string
   products: PromoteProductOption[]
   collectionUrl: string
   logos?: PromoteLogoOption[]
+  facebookPageId?: string | null
+  facebookPageName?: string | null
 }) {
   const [selectedIds, setSelectedIds] = useState<number[]>(products[0] ? [products[0].id] : [])
   const [templateId, setTemplateId] = useState(PROMO_TEMPLATES[0].id)
@@ -225,6 +230,10 @@ export default function PromoteBuilder({
             Reset to suggested wording
           </button>
         </div>
+
+        {platformIds.includes('facebook') && (
+          <FacebookPageSelector pageId={facebookPageId} pageName={facebookPageName} />
+        )}
 
         {imageUrl && (
           <div className="space-y-3">
