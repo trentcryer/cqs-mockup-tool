@@ -6,6 +6,7 @@ import { LogOut } from 'lucide-react'
 import { TourProvider } from '@/components/tour/TourProvider'
 import { TourControls } from '@/components/tour/TourControls'
 import { GroupLogoButton } from '@/components/studio/GroupLogoButton'
+import { groupLabel as getGroupLabel } from '@/lib/group-type'
 
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export default async function StudioLayout({ children }: { children: React.React
     .single()
 
   const groupType: string = (profile as any)?.group_type || 'quartet'
-  const groupLabel = groupType === 'chorus' ? 'Chorus' : 'Quartet'
+  const groupLabel = getGroupLabel(groupType)
   const groupName = (profile as any)?.quartet_name || `My ${groupLabel}`
 
   // Sign the profile logo URL if one is set

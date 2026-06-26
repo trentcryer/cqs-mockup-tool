@@ -7,6 +7,7 @@ import { MyDesignsClient } from '@/components/studio/MyDesignsClient'
 import { revalidatePath, unstable_cache } from 'next/cache'
 import { sendReviewRequestEmail } from '@/lib/resend'
 import { getProductsInCollection, getOrderLineItemsInDateRange } from '@/lib/shopify'
+import { groupLabel as getGroupLabel } from '@/lib/group-type'
 
 // Cache Shopify dashboard data per collection for 5 minutes.
 // Filters store-wide orders down to only this collection's products.
@@ -61,7 +62,7 @@ export default async function MyStudioPage({ searchParams }) {
   }))
 
   const groupType: string = profile?.group_type || 'quartet'
-  const groupLabel = groupType === 'chorus' ? 'Chorus' : 'Quartet'
+  const groupLabel = getGroupLabel(groupType)
   const groupName = profile?.quartet_name || `My ${groupLabel}`
 
   // Shopify dashboard — graceful fallback if unconfigured or collection not assigned

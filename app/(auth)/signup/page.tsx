@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-
-type GroupType = 'quartet' | 'chorus'
+import { GROUP_TYPES, type GroupType, groupLabel } from '@/lib/group-type'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -21,7 +20,7 @@ export default function SignupPage() {
     e.preventDefault()
     setLoading(true)
 
-    const name = groupName.trim() || `My ${groupType === 'chorus' ? 'Chorus' : 'Quartet'}`
+    const name = groupName.trim() || `My ${groupLabel(groupType)}`
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -41,7 +40,7 @@ export default function SignupPage() {
     setLoading(false)
   }
 
-  const label = groupType === 'chorus' ? 'Chorus' : 'Quartet'
+  const label = groupLabel(groupType)
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-[#f7f5f2]">
@@ -61,8 +60,8 @@ export default function SignupPage() {
             {/* Group type selector */}
             <div>
               <label className="eyebrow block mb-2">We are a…</label>
-              <div className="grid grid-cols-2 gap-2">
-                {(['quartet', 'chorus'] as GroupType[]).map((type) => (
+              <div className="grid grid-cols-3 gap-2">
+                {GROUP_TYPES.map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -88,7 +87,13 @@ export default function SignupPage() {
                 onChange={(e) => setGroupName(e.target.value)}
                 className="w-full border border-[#e8e0d8] px-4 py-3 text-[14px] focus:outline-none focus:border-[#1c1412] bg-[#faf9f7]"
                 style={{ borderRadius: 4 }}
-                placeholder={groupType === 'chorus' ? 'The Harmony Chorus' : 'The Harmony Kings'}
+                placeholder={
+                  groupType === 'chorus' ? 'The Harmony Chorus'
+                    : groupType === 'district' ? 'Sunshine District'
+                    : groupType === 'region' ? 'Pioneer Region'
+                    : groupType === 'other' ? 'Your group name'
+                    : 'The Harmony Kings'
+                }
               />
             </div>
 
