@@ -39,14 +39,24 @@ export default async function AdminEditorPage({
     logoSignedUrl = data?.signedUrl || null
   }
 
-  // Fetch Printful template for the live preview garment image
+  // Fetch Printful template (garment image) + product info (description, sizes, size guide)
   let template: import('@/lib/printful').PrintfulTemplate | null = null
+  let productInfo: {
+    description: string
+    sizes: string[]
+    sizeTables: any[]
+    colors: Array<{ name: string; value: string }>
+  } | null = null
   try {
     const client = getPrintfulClient()
-    const resp = await client.getTemplates((design as any).product_id)
-    template = resp.templates?.[0] ?? null
+    const [tmpl, info] = await Promise.allSettled([
+      client.getTemplates((design as any).product_id),
+      client.getProductV2Info((design as any).product_id),
+    ])
+    if (tmpl.status === 'fulfilled') template = tmpl.value.templates?.[0] ?? null
+    if (info.status === 'fulfilled') productInfo = info.value
   } catch {
-    // Non-fatal — live preview just won't show garment
+    // Non-fatal — live preview / product info just won't show
   }
 
   return (
@@ -55,6 +65,7 @@ export default async function AdminEditorPage({
       canvasPreviewUrl={canvasPreviewUrl}
       logoSignedUrl={logoSignedUrl}
       template={template}
+      productInfo={productInfo}
     />
   )
 }

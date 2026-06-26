@@ -16,6 +16,7 @@ import {
   getPrintAreaForPlacement,
   transformToPosition,
 } from '@/lib/printful'
+import { buildBodyHtml } from '@/lib/description-html'
 import AdminQueueClient from './AdminQueueClient'
 import CollectionDropdown from './CollectionDropdown'
 import PrintfulDraftOrders from './PrintfulDraftOrders'
@@ -245,9 +246,6 @@ export default async function AdminPage() {
       try {
         const allMockups: any[] = design.mockup_urls ?? []
         const hasPerColorMockups = allMockups.some((m: any) => m.color)
-        const primaryColor = design.color || Object.keys(
-          design.color_variant_map || { [design.color || 'Default']: [] }
-        )[0]
         // When per-color mockups exist, pass NO images at product creation time.
         // addProductImage below links each color's mockup to its variant IDs,
         // so Shopify only shows the selected color's image — no stale "original" underneath.
@@ -261,7 +259,17 @@ export default async function AdminPage() {
         // color_variant_map: { "Black": [pfId1, pfId2, ...], "Gray": [...] }
         const colorVariantMap: Record<string, number[]> =
           design.color_variant_map || { [design.color || 'Default']: design.variant_ids }
-        const selectedColors = Object.keys(colorVariantMap)
+        // Honor the admin's color selection from the editor (publish_overrides).
+        // Absent override = all mapped colors.
+        const overrides = design.publish_overrides || {}
+        const allColors = Object.keys(colorVariantMap)
+        const selectedColors = Array.isArray(overrides.selected_colors) && overrides.selected_colors.length
+          ? allColors.filter(c => overrides.selected_colors.includes(c))
+          : allColors
+        // Primary color drives size order + single-color image linking — pick one
+        // that's actually being published.
+        const primaryColor = (selectedColors.includes(design.color) ? design.color : selectedColors[0])
+          || design.color || allColors[0]
 
         // Fetch Printful variant details to get size names
         let variantById = new Map<number, any>()
@@ -273,13 +281,17 @@ export default async function AdminPage() {
           // No size data available — fall through to flat pricing
         }
 
-        // Size order from primary color's variants
+        // Size order from primary color's variants, filtered by the admin's size
+        // selection from the editor (publish_overrides). Absent override = all sizes.
+        const sizeFilter: string[] | null = Array.isArray(overrides.selected_sizes) && overrides.selected_sizes.length
+          ? overrides.selected_sizes
+          : null
         const primaryIds: number[] = (colorVariantMap[primaryColor] || design.variant_ids).map(Number)
         const sizeOrder: string[] = []
         const seenSizes = new Set<string>()
         for (const id of primaryIds) {
           const v = variantById.get(id)
-          if (v?.size && !seenSizes.has(v.size)) {
+          if (v?.size && !seenSizes.has(v.size) && (!sizeFilter || sizeFilter.includes(v.size))) {
             seenSizes.add(v.size)
             sizeOrder.push(v.size)
           }
@@ -325,20 +337,30 @@ export default async function AdminPage() {
         }
         // ------------------------------------------------------------------
 
-        const [productDescription] = await Promise.allSettled([
-          client.getProductDescription(design.product_id),
+        // Body HTML — assembled from the admin's editor edits (publish_overrides)
+        // when present, else live Printful data. buildBodyHtml is the same builder
+        // the editor's "Published Preview" uses, so what they saw is what ships.
+        const [pfInfoRes] = await Promise.allSettled([
+          client.getProductV2Info(design.product_id),
         ])
-        const descriptionHtml = productDescription.status === 'fulfilled'
-          ? productDescription.value : ''
-        const notesHtml = design.notes ? `<p><em>${design.notes}</em></p>` : ''
+        const pfInfo = pfInfoRes.status === 'fulfilled' ? pfInfoRes.value : null
+        const descriptionText = typeof overrides.printful_description === 'string'
+          ? overrides.printful_description
+          : (pfInfo?.description || '')
+        const bodyHtml = buildBodyHtml({
+          notes: design.notes,
+          descriptionText,
+          sizeTables: pfInfo?.sizeTables,
+          sizeGuideEnabled: overrides.size_guide_enabled !== false,
+        })
 
         const colorLabel = selectedColors.length > 1
           ? `${selectedColors.length} Colors`
-          : (design.color || design.placement)
+          : (primaryColor || design.color || design.placement)
 
         const shopifyProduct = await createProduct({
           title: customTitleClean ?? `${quartetName} — ${design.product_title} (${colorLabel})`,
-          body_html: [notesHtml, descriptionHtml].filter(Boolean).join('\n') || undefined,
+          body_html: bodyHtml || undefined,
           images: mockupImages,
           tags: `cqs,quartet,${design.placement}`,
           options: productOptions.length > 0 ? productOptions : undefined,

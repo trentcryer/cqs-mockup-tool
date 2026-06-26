@@ -4,6 +4,8 @@
  * Reuses patterns from legacy Python cqs_mockup/client.py
  */
 
+import { descriptionTextToHtml, sizeTablesToHtml } from './description-html'
+
 const BASE_URL = 'https://api.printful.com'
 
 export class PrintfulError extends Error {
@@ -268,33 +270,12 @@ class PrintfulClient {
 
     if (productRes.status === 'fulfilled' && productRes.value.ok) {
       const d = await productRes.value.json()
-      const raw = cleanDescription(d.data?.description || '')
-      // Convert bullet points to HTML list
-      const lines = raw.split('\n').map((l: string) => l.trim()).filter(Boolean)
-      const bullets: string[] = []
-      const intro: string[] = []
-      for (const line of lines) {
-        if (line.startsWith('•')) bullets.push(`<li>${line.slice(1).trim()}</li>`)
-        else intro.push(`<p>${line}</p>`)
-      }
-      description = intro.join('') + (bullets.length ? `<ul>${bullets.join('')}</ul>` : '')
+      description = descriptionTextToHtml(cleanDescription(d.data?.description || ''))
     }
 
     if (sizesRes.status === 'fulfilled' && sizesRes.value.ok) {
       const d = await sizesRes.value.json()
-      const table = d.data?.size_tables?.find((t: any) => t.type === 'product_measure' && t.unit === 'inches')
-        || d.data?.size_tables?.[0]
-      if (table?.measurements?.length) {
-        const sizes = table.measurements[0].values.map((v: any) => v.size)
-        let rows = `<tr><th>Size</th>${sizes.map((s: string) => `<th>${s}</th>`).join('')}</tr>`
-        for (const m of table.measurements) {
-          const cells = m.values.map((v: any) =>
-            v.value ? v.value : `${v.min_value}–${v.max_value}`
-          )
-          rows += `<tr><td>${m.type_label}</td>${cells.map((c: string) => `<td>${c}</td>`).join('')}</tr>`
-        }
-        sizingHtml = `<h4>Size Guide (inches)</h4><table>${rows}</table>`
-      }
+      sizingHtml = sizeTablesToHtml(d.data?.size_tables || [])
     }
 
     return [description, sizingHtml].filter(Boolean).join('\n')
