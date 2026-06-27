@@ -48,13 +48,47 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Features strip */}
-      <div className="border-t border-[#e8e0d8] py-8">
-        <div className="max-w-4xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 text-[12px] text-[#9b8c7a]">
-          <div>500+ products available</div>
-          <div>Drag-to-place logo editor</div>
-          <div>Real-time HD mockups</div>
-          <div>One-click review workflow</div>
+      {/* Two paths */}
+      <div className="border-t border-[#e8e0d8] py-12">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-2xl font-bold text-[#1c1412] text-center mb-12">What are you here to do?</h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Creators */}
+            <div className="bg-[#faf9f7] p-8 rounded">
+              <h3 className="text-xl font-semibold text-[#1c1412] mb-4">Creators</h3>
+              <p className="text-[#9b8c7a] mb-6">
+                Running a barbershop quartet or chorus? Design custom merch, manage your catalog, and connect with fans on the Barber Feed.
+              </p>
+              <ul className="space-y-2 text-[13px] text-[#9b8c7a] mb-6">
+                <li>✓ 500+ customizable products</li>
+                <li>✓ HD mockup previews</li>
+                <li>✓ Admin approval workflow</li>
+                <li>✓ Post to Barber Feed</li>
+                <li>✓ Share to socials</li>
+              </ul>
+              <Link href="/signup" className="btn-primary px-6 py-3 inline-block">
+                Start My Studio
+              </Link>
+            </div>
+
+            {/* Barbersshopers */}
+            <div className="bg-[#faf9f7] p-8 rounded">
+              <h3 className="text-xl font-semibold text-[#1c1412] mb-4">Barbersshopers</h3>
+              <p className="text-[#9b8c7a] mb-6">
+                Love barbershop music? Browse the latest apparel from your favorite groups and stay connected on the Barber Feed.
+              </p>
+              <ul className="space-y-2 text-[13px] text-[#9b8c7a] mb-6">
+                <li>✓ Shop from multiple groups</li>
+                <li>✓ Unified cart & checkout</li>
+                <li>✓ Explore Barber Feed</li>
+                <li>✓ Follow favorite groups</li>
+                <li>✓ Get notifications</li>
+              </ul>
+              <Link href="/signup" className="btn-primary px-6 py-3 inline-block">
+                Join as Barbershopper
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
