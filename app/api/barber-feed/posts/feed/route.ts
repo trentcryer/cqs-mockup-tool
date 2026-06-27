@@ -32,8 +32,8 @@ export async function GET(req: NextRequest) {
     const postsWithDetails = await Promise.all(
       posts.map(async (post: any) => {
         // Get group info
-        const { data: group } = await supabase
-          .from('profiles')
+        const { data: group } = await (supabase
+          .from('profiles') as any)
           .select('quartet_name, profile_logo_path')
           .eq('id', post.group_id)
           .single()
@@ -42,15 +42,15 @@ export async function GET(req: NextRequest) {
         let shared_by_user = false
 
         if (user_id) {
-          const { data: like } = await supabase
-            .from('feed_post_likes')
+          const { data: like } = await (supabase
+            .from('feed_post_likes') as any)
             .select('id')
             .eq('user_id', user_id)
             .eq('post_id', post.id)
             .single()
 
-          const { data: share } = await supabase
-            .from('feed_post_shares')
+          const { data: share } = await (supabase
+            .from('feed_post_shares') as any)
             .select('id')
             .eq('user_id', user_id)
             .eq('post_id', post.id)

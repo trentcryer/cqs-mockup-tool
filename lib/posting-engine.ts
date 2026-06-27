@@ -79,7 +79,7 @@ export class PostingEngine {
 
   // Platform-specific posting logic
   private async postToBarberFeed(group_id: string, payload: PostToMultiplePlatforms): Promise<string> {
-    const { data, error } = await this.admin.from('barber_feed_posts').insert({
+    const { data, error } = await (this.admin.from('barber_feed_posts') as any).insert({
       group_id,
       content_type: payload.content_type,
       media_url: payload.media_url,
@@ -235,10 +235,13 @@ export class PostingEngine {
   // Helper: upload image to X (returns media_id)
   private async uploadToX(accessToken: string, imageUrl: string): Promise<string> {
     const imageBuffer = await fetch(imageUrl).then(r => r.arrayBuffer())
+    const formData = new FormData()
+    formData.append('media_data', Buffer.from(imageBuffer).toString('base64'))
+
     const response = await fetch('https://upload.twitter.com/1.1/media/upload.json', {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
-      body: new FormData().append('media_data', Buffer.from(imageBuffer).toString('base64')),
+      body: formData,
     })
 
     const data = await response.json()

@@ -61,6 +61,7 @@ export default async function StudioLayout({ children }: { children: React.React
             <Link href="/studio/catalog" className="text-white/75 hover:text-white px-3 py-2 rounded hover:bg-white/8 transition text-[13px]">Catalog</Link>
             <Link href="/studio" className="text-white/75 hover:text-white px-3 py-2 rounded hover:bg-white/8 transition text-[13px]">My Studio</Link>
             <Link href="/studio/promote" className="text-white/75 hover:text-white px-3 py-2 rounded hover:bg-white/8 transition text-[13px]">Promote</Link>
+            <Link href="/studio/barber-feed" className="text-white/75 hover:text-white px-3 py-2 rounded hover:bg-white/8 transition text-[13px]">Barber Feed</Link>
             <Link href="/admin" className="text-white/40 hover:text-white/75 px-3 py-2 rounded hover:bg-white/8 transition text-[11px] tracking-[1.5px] uppercase ml-2">Admin</Link>
 
             <div className="ml-1 pl-3 border-l border-white/15">

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Increment like count
-    const { data: post } = await admin.from('barber_feed_posts').select('like_count').eq('id', post_id).single()
+    const { data: post } = await (admin.from('barber_feed_posts') as any).select('like_count').eq('id', post_id).single()
     const newCount = (post?.like_count || 0) + 1
 
     await (admin.from('barber_feed_posts') as any).update({ like_count: newCount }).eq('id', post_id)
@@ -53,7 +53,7 @@ export async function DELETE(req: NextRequest) {
     await admin.from('feed_post_likes').delete().eq('user_id', user.id).eq('post_id', post_id)
 
     // Decrement like count
-    const { data: post } = await admin.from('barber_feed_posts').select('like_count').eq('id', post_id).single()
+    const { data: post } = await (admin.from('barber_feed_posts') as any).select('like_count').eq('id', post_id).single()
     const newCount = Math.max(0, (post?.like_count || 1) - 1)
 
     await (admin.from('barber_feed_posts') as any).update({ like_count: newCount }).eq('id', post_id)

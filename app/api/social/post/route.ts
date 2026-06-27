@@ -106,7 +106,7 @@ async function notifyFollowers(admin: any, group_id: string, post_id: string, gr
     }
 
     // Queue notifications (in a real system, use a job queue)
-    subscriptions.forEach(sub => {
+    subscriptions.forEach((sub: any) => {
       // Send via Web Push API (server-side)
       sendWebPushNotification(sub, notificationPayload).catch(e => console.error('[Push error]', e))
     })
