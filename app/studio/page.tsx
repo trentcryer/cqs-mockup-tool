@@ -2,7 +2,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, TrendingUp, Package, AlertTriangle, ExternalLink, ShoppingBag, DollarSign } from 'lucide-react'
+import { Plus, TrendingUp, Package, AlertTriangle, ExternalLink, ShoppingBag, DollarSign, Video } from 'lucide-react'
 import { MyDesignsClient } from '@/components/studio/MyDesignsClient'
 import { revalidatePath, unstable_cache } from 'next/cache'
 import { sendReviewRequestEmail } from '@/lib/resend'
@@ -175,9 +175,14 @@ export default async function MyStudioPage({ searchParams }) {
           <h1 className="text-4xl font-bold tracking-tight text-[#1c1412] leading-none">{groupName}</h1>
           <div className="text-[13px] text-[#9b8c7a] mt-2">{groupLabel} studio</div>
         </div>
-        <Link data-tour="browse-catalog-btn" href="/studio/catalog" className="btn-primary px-5 py-3 flex items-center gap-2 text-sm">
-          <Plus size={16} /> New Design
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/studio/post" className="btn-secondary px-5 py-3 flex items-center gap-2 text-sm">
+            <Video size={16} /> Create Post
+          </Link>
+          <Link data-tour="browse-catalog-btn" href="/studio/catalog" className="btn-primary px-5 py-3 flex items-center gap-2 text-sm">
+            <Plus size={16} /> New Design
+          </Link>
+        </div>
       </div>
 
       {/* Group name editor — collapsible */}

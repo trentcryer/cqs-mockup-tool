@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Video } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarberFeedPost, BarberFeedResponse } from '@/types/barber-feed';
 import FeedPost from '@/components/barber-feed/FeedPost';
@@ -160,6 +160,9 @@ export default function BarberFeedPage() {
             <p className="text-zinc-400 mt-1">Discover harmony from groups across the world</p>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/studio/post" className="flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 rounded-xl text-sm font-medium transition">
+              <Video size={16} /> Create Post
+            </Link>
             <button
               onClick={() => window.location.reload()}
               className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm"
