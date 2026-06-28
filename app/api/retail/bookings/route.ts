@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         requested_date: requestedDate,
         event_details: eventDetails,
         status: 'pending',
-      })
+      } as any)
 
     if (insertError) throw insertError
 
