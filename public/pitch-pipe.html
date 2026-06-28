@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CQS Micro Pitch Pipe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        button, .slot-btn, .number-btn {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        .title-font {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        .pitch-pipe-container {
+            width: 320px;
+            height: 320px;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .pitch-pipe-outer {
+            width: 320px;
+            height: 320px;
+            border-radius: 9999px;
+            background: linear-gradient(145deg, #27251f, #1c1917);
+            box-shadow: 
+                0 25px 50px -12px rgb(0 0 0 / 0.4),
+                inset 0 2px 4px 0 rgb(245 158 11 / 0.1),
+                inset 0 -2px 4px 0 rgb(0 0 0 / 0.3);
+            border: 12px solid #3f3a33;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pitch-pipe-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border-radius: 9999px;
+            background: #1c1917;
+            border: 8px solid #57534e;
+            box-shadow: inset 0 10px 15px -3px rgb(0 0 0 / 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .number-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fefce8;
+            background: linear-gradient(145deg, #3f3a33, #292524);
+            border: 3px solid #57534e;
+            box-shadow: 
+                0 10px 15px -3px rgb(0 0 0 / 0.3),
+                inset 0 2px 4px 0 rgb(245 158 11 / 0.15);
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+            z-index: 20;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .number-btn:hover {
+            background: linear-gradient(145deg, #57534e, #3f3a33);
+            transform: scale(1.05);
+        }
+
+        .number-btn:active, .number-btn.active {
+            background: linear-gradient(145deg, #f59e0b, #d97706);
+            color: #1c1917;
+            border-color: #fef08c;
+            box-shadow: 
+                0 0 0 4px rgba(245, 158, 11, 0.3),
+                0 10px 15px -3px rgb(0 0 0 / 0.3);
+            transform: scale(1.1);
+        }
+
+        .number-btn .note-label {
+            position: absolute;
+            bottom: -18px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #a1a1aa;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .number-btn.half-step {
+            background: linear-gradient(145deg, #3f3a33, #292524);
+            border: 2px solid #57534e;
+            opacity: 0.95;
+        }
+
+        .number-btn.main-degree {
+            background: linear-gradient(145deg, #3f3a33, #292524);
+            border: 3px solid #57534e;
+        }
+
+        .number-btn.half-step .note-label {
+            bottom: -14px;
+            font-size: 0.55rem;
+        }
+
+        .pitch-pipe-label {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1c1917;
+            padding: 0 16px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #f59e0b;
+            border: 2px solid #57534e;
+            border-radius: 9999px;
+            z-index: 30;
+        }
+
+        .slot-btn {
+            transition: all 0.1s ease;
+        }
+        
+        .slot-btn.active {
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4);
+            transform: scale(1.02);
+        }
+        
+        .slot-active {
+            border-color: #f59e0b !important;
+            box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.6), 
+                        0 0 25px rgba(245, 158, 11, 0.4) !important;
+            transform: scale(1.02);
+        }
+
+        .cents-slider {
+            accent-color: #f59e0b;
+        }
+
+        .side-col {
+            width: 90px;
+            flex-shrink: 0;
+        }
+
+        .key-btn-side {
+            width: 100%;
+            padding: 4px 2px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 10px;
+            background: #27251f;
+            border: 1px solid #57534e;
+            color: #e4e4e7;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.1s;
+            touch-action: manipulation;
+            line-height: 1.2;
+        }
+
+        .key-btn-side:hover {
+            background: #3f3a33;
+            border-color: #f59e0b;
+        }
+
+        .key-btn-side.active-key {
+            background: #f59e0b;
+            color: #1c1917;
+            border-color: #fef08c;
+        }
+
+        .slot-card-side {
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 12px;
+            padding: 5px 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.1s;
+            touch-action: manipulation;
+        }
+
+        .slot-card-side:hover {
+            border-color: rgba(245,158,11,0.5);
+        }
+
+        .slot-card-side.slot-active {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245,158,11,0.35);
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200">
+    <div class="max-w-3xl mx-auto min-h-screen p-3 md:p-5">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-x-3">
+                <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-inner flex-shrink-0">
+                    <i class="fa-solid fa-music text-zinc-950 text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="title-font text-2xl font-semibold tracking-tighter leading-tight">CQS Micro Pitch Pipe</h1>
+                    <p class="text-zinc-500 text-[11px]">Tap 1–8 to play &nbsp;&bull;&nbsp; Hold to sustain &nbsp;&bull;&nbsp; On phone: tap once to enable audio</p>
+                </div>
+            </div>
+            <div class="text-right text-[10px] text-zinc-500 leading-tight hidden sm:block">
+                Custom Quartet Stuff<br>
+                <span class="text-amber-400">For ringing barbershop chords</span>
+            </div>
+        </div>
+
+        <!-- THREE-COLUMN ROW: Slots | Pitch Pipe | Key -->
+        <div class="flex items-start gap-3 mb-3">
+
+            <!-- LEFT: Slots double-stacked -->
+            <div class="side-col flex flex-col">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="text-[9px] font-bold tracking-widest text-zinc-400">SLOTS</div>
+                    <button onclick="clearAllSlots()" class="text-[9px] px-1.5 py-0.5 bg-zinc-800 hover:bg-red-900/30 border border-zinc-700 rounded-lg text-red-400 leading-tight">CLR</button>
+                </div>
+                <div class="grid grid-cols-2 gap-1 flex-1" id="slots-container">
+                    <!-- JS populates slot cards -->
+                </div>
+            </div>
+
+            <!-- CENTER: Pitch Pipe -->
+            <div class="flex-1 flex flex-col items-center min-w-0">
+                <div class="flex items-center justify-between w-full mb-1.5 px-1">
+                    <div class="text-[9px] font-bold tracking-widest text-zinc-400">PITCH PIPE</div>
+                    <button onclick="toggleLabelMode()"
+                            class="text-[10px] px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-amber-300 leading-tight">
+                        <span id="label-mode-text">NUM</span> ↔ NOTES
+                    </button>
+                </div>
+                <div id="pitch-pipe" class="pitch-pipe-container">
+                    <!-- JS populates chromatic buttons -->
+                </div>
+                <div class="text-center mt-1 text-[10px] text-zinc-600">
+                    Big = 1–8 &nbsp;&bull;&nbsp; Small = .5 steps
+                </div>
+            </div>
+
+            <!-- RIGHT: Key selector double-stacked -->
+            <div class="side-col flex flex-col">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="text-[9px] font-bold tracking-widest text-zinc-400">KEY</div>
+                    <div id="current-key" class="font-mono text-[10px] font-bold text-amber-300">C4</div>
+                </div>
+                <div class="grid grid-cols-2 gap-1" id="key-buttons">
+                    <!-- JS populates key buttons -->
+                </div>
+            </div>
+
+        </div><!-- end 3-col row -->
+
+        <!-- ADJUST & SAVE (directly below pitch pipe row) -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 mb-4" id="adjust-panel">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <div class="text-[10px] font-semibold tracking-widest text-zinc-400">ADJUST &amp; SAVE TO SLOT</div>
+                    <div id="adjust-current-note" class="text-xl font-semibold text-amber-300">Select a note above</div>
+                </div>
+                <button onclick="clearAdjustPanel()"
+                        class="px-3 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl">
+                    Clear
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div class="md:col-span-3">
+                    <div class="text-xs text-zinc-400 mb-1">Base Note</div>
+                    <div id="adjust-base" class="font-mono text-lg bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-2">—</div>
+                </div>
+                <div class="md:col-span-6">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="text-xs text-zinc-400">Micro Adjustment (cents)</div>
+                        <div class="flex items-center gap-x-1.5">
+                            <button onclick="adjustCents(-5)" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-mono">-5</button>
+                            <button onclick="adjustCents(-1)" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-mono">-1</button>
+                            <div id="adjust-cents-value" class="font-mono text-xl w-14 text-center text-amber-300 tabular-nums">0</div>
+                            <button onclick="adjustCents(1)" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-mono">+1</button>
+                            <button onclick="adjustCents(5)" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm font-mono">+5</button>
+                        </div>
+                    </div>
+                    <input type="range" id="cents-slider" min="-50" max="50" step="1" value="0"
+                           class="cents-slider w-full accent-amber-400" oninput="updateCentsFromSlider()">
+                    <div class="flex justify-between text-[10px] text-zinc-500 mt-0.5">
+                        <div>Flatter (−)</div>
+                        <div>Sharper (+)</div>
+                    </div>
+                </div>
+                <div class="md:col-span-3 flex flex-col gap-y-2">
+                    <div>
+                        <div class="text-xs text-zinc-400 mb-1">Preview Frequency</div>
+                        <div id="adjust-freq" class="font-mono text-sm bg-zinc-950 border border-zinc-700 rounded-2xl px-3 py-1.5 text-center">— Hz</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-zinc-400 mb-1 text-center">Assign to slot</div>
+                        <div class="grid grid-cols-5 gap-1">
+                            <button onclick="assignToSlot(1)" class="assign-btn text-xs py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl font-bold">1</button>
+                            <button onclick="assignToSlot(2)" class="assign-btn text-xs py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl font-bold">2</button>
+                            <button onclick="assignToSlot(3)" class="assign-btn text-xs py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl font-bold">3</button>
+                            <button onclick="assignToSlot(4)" class="assign-btn text-xs py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl font-bold">4</button>
+                            <button onclick="assignToSlot(5)" class="assign-btn text-xs py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-2xl font-bold">5</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pro Tips -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 text-xs text-zinc-400">
+            <div class="font-semibold text-amber-300 mb-1">Pro Tips for Barbershop Use</div>
+            <ul class="list-disc pl-4 space-y-0.5">
+                <li>Scale degree <strong>7</strong> lowered 10–30 cents gives the ringing barbershop 7th chord.</li>
+                <li>Click a Slot → tap a note on the pipe to load it live.</li>
+                <li>Hold a slot for sustained tone — perfect for putting the phone to someone's ear.</li>
+                <li>Change key anytime — all notes and slots update automatically.</li>
+            </ul>
+            <div class="mt-3 text-[10px] text-center text-zinc-500">
+                Built for the CQS community • Works great alongside the CQS Tag Number Player
+            </div>
+        </div>
+
+    </div>
+    <script>
+        // ==================== AUDIO & STATE ====================
+        let audioContext = null;
+        let masterGain = null;
+        let currentOscillator = null;
+        let currentGain = null;
+
+        let currentTonicFreq = 261.63; // C4 default
+        let currentTonicNote = "C4";
+        let currentAdjustDegree = null; // 1-8 or null
+        let currentAdjustCents = 0;
+        let activeSlotId = null; // Currently selected slot for editing
+        let labelMode = 'numbers'; // 'numbers' or 'notes'
+
+        // 5 Custom slots in sequence order for the tag
+        let customSlots = [
+            { id: 1, baseDegree: 5, cents: 0, label: "Slot 1" },
+            { id: 2, baseDegree: 3, cents: 0, label: "Slot 2" },
+            { id: 3, baseDegree: 7, cents: -14, label: "Slot 3 (Dirty 7)" },
+            { id: 4, baseDegree: 1, cents: 0, label: "Slot 4" },
+            { id: 5, baseDegree: 8, cents: 0, label: "Slot 5" }
+        ];
+
+        const noteFrequencies = {
+            'C3': 130.81, 'C#3': 138.59, 'D3': 146.83, 'Eb3': 155.56, 'E3': 164.81,
+            'F3': 174.61, 'F#3': 185.00, 'G3': 196.00, 'Ab3': 207.65, 'A3': 220.00,
+            'Bb3': 233.08, 'B3': 246.94,
+            'C4': 261.63, 'C#4': 277.18, 'D4': 293.66, 'Eb4': 311.13, 'E4': 329.63,
+            'F4': 349.23, 'F#4': 369.99, 'G4': 392.00, 'Ab4': 415.30, 'A4': 440.00,
+            'Bb4': 466.16, 'B4': 493.88,
+            'C5': 523.25
+        };
+
+        const scaleSemitones = [0, 2, 4, 5, 7, 9, 11, 12]; // degrees 1-8
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = audioContext.createGain();
+                masterGain.gain.value = 0.75;
+                masterGain.connect(audioContext.destination);
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().catch(() => {});
+            }
+        }
+
+        function getFrequencyForDegree(degree, cents = 0) {
+            const semitones = scaleSemitones[degree - 1] || 0;
+            const baseFreq = currentTonicFreq * Math.pow(2, semitones / 12);
+            return baseFreq * Math.pow(2, cents / 1200);
+        }
+
+        function playTone(frequency, durationMs = 800, sustain = false) {
+            initAudio();
+            stopCurrentTone();
+
+            const osc = audioContext.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = frequency;
+
+            const gain = audioContext.createGain();
+            gain.gain.value = 0;
+
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1600;
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(masterGain);
+
+            const now = audioContext.currentTime;
+
+            if (sustain) {
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.85, now + 0.03);
+                // Will be stopped manually
+            } else {
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.85, now + 0.025);
+                // Smoother longer release to prevent click
+                gain.gain.linearRampToValueAtTime(0.0001, now + (durationMs / 1000) * 0.9);
+                osc.stop(now + (durationMs / 1000) + 0.35);
+            }
+
+            osc.start(now);
+
+            currentOscillator = osc;
+            currentGain = gain;
+
+            return { osc, gain };
+        }
+
+        function stopCurrentTone() {
+            if (currentGain) {
+                const now = audioContext.currentTime;
+                currentGain.gain.cancelScheduledValues(now);
+                // Much longer, smoother release to completely kill click/static/drum sound
+                currentGain.gain.linearRampToValueAtTime(0.00001, now + 0.5);
+            }
+            if (currentOscillator) {
+                setTimeout(() => {
+                    try { currentOscillator.stop(); } catch(e) {}
+                    currentOscillator = null;
+                    currentGain = null;
+                }, 550);
+            }
+        }
+
+        // ==================== UI RENDERING ====================
+        function createKeyButtons() {
+            const container = document.getElementById('key-buttons');
+            container.innerHTML = '';
+            const commonKeys = ['C3','D3','Eb3','E3','F3','G3','A3','Bb3','C4','D4','Eb4','E4','F4','G4'];
+            
+            commonKeys.forEach(note => {
+                const btn = document.createElement('button');
+                const isActive = note === currentTonicNote;
+                btn.className = `key-btn-side${isActive ? ' active-key' : ''}`;
+                btn.dataset.note = note;
+                const noteName = note.replace(/\d/, '');
+                const octave = note.slice(-1);
+                btn.innerHTML = `<div>${noteName}</div><div style="font-size:0.55rem;opacity:0.65;margin-top:-1px">${octave}</div>`;
+                btn.onclick = () => setKey(note);
+                container.appendChild(btn);
+            });
+        }
+
+        function setKey(noteName) {
+            if (!noteFrequencies[noteName]) return;
+            stopCurrentTone();
+            currentTonicFreq = noteFrequencies[noteName];
+            currentTonicNote = noteName;
+            document.getElementById('current-key').textContent = noteName;
+
+            document.querySelectorAll('#key-buttons button').forEach(btn => {
+                const active = btn.dataset.note === noteName;
+                btn.classList.toggle('active-key', active);
+            });
+
+            // Update all visuals
+            updateAllNumberLabels();
+            updateSlotsDisplay();
+            if (currentAdjustDegree) {
+                updateAdjustPanel();
+            }
+        }
+
+        function createPitchPipe() {
+            const container = document.getElementById('pitch-pipe');
+            container.innerHTML = '';
+
+            // Outer ring
+            const outer = document.createElement('div');
+            outer.className = 'pitch-pipe-outer';
+            container.appendChild(outer);
+
+            // Inner hub
+            const inner = document.createElement('div');
+            inner.className = 'pitch-pipe-inner';
+            inner.innerHTML = `
+                <div class="text-center">
+                    <div class="text-[10px] font-bold tracking-[3px] text-amber-400/70">CQS</div>
+                    <div class="text-3xl font-bold text-white tracking-tighter mt-0.5">1–8 + ½</div>
+                    <div class="text-[9px] text-zinc-500 mt-1">CHROMATIC</div>
+                </div>
+            `;
+            outer.appendChild(inner);
+
+            // Label
+            const label = document.createElement('div');
+            label.className = 'pitch-pipe-label px-5 py-0.5 text-xs font-bold tracking-widest shadow';
+            label.textContent = labelMode === 'numbers' ? 'NUMBERS + .5' : 'NOTES';
+            container.appendChild(label);
+
+            const centerX = 160;
+            const centerY = 160;
+            const radius = 118;
+
+            // Chromatic with .5 style for half steps (big = main 1-8, small = .5)
+            // Exactly 15 items: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8
+            const chromatic = [
+                { labelNum: "1",    labelNote: "C",   semi: 0,  main: true  },
+                { labelNum: "1.5",  labelNote: "C#",  semi: 1,  main: false },
+                { labelNum: "2",    labelNote: "D",   semi: 2,  main: true  },
+                { labelNum: "2.5",  labelNote: "Eb",  semi: 3,  main: false },
+                { labelNum: "3",    labelNote: "E",   semi: 4,  main: true  },
+                { labelNum: "3.5",  labelNote: "F",   semi: 5,  main: false },
+                { labelNum: "4",    labelNote: "F",   semi: 5,  main: true  },
+                { labelNum: "4.5",  labelNote: "F#",  semi: 6,  main: false },
+                { labelNum: "5",    labelNote: "G",   semi: 7,  main: true  },
+                { labelNum: "5.5",  labelNote: "Ab",  semi: 8,  main: false },
+                { labelNum: "6",    labelNote: "A",   semi: 9,  main: true  },
+                { labelNum: "6.5",  labelNote: "Bb",  semi: 10, main: false },
+                { labelNum: "7",    labelNote: "B",   semi: 11, main: true  },
+                { labelNum: "7.5",  labelNote: "B+",  semi: 11.5, main: false },
+                { labelNum: "8",    labelNote: "C",   semi: 12, main: true  }
+            ];
+
+            for (let idx = 0; idx < chromatic.length; idx++) {
+                const item = chromatic[idx];
+                const angleDeg = idx * (360 / 15) - 90;
+                const angleRad = angleDeg * Math.PI / 180;
+                const x = centerX + radius * Math.cos(angleRad);
+                const y = centerY + radius * Math.sin(angleRad);
+
+                const btn = document.createElement('button');
+                btn.className = `number-btn flex flex-col items-center justify-center ${item.main ? 'main-degree' : 'half-step'}`;
+                btn.style.left = `${x - (item.main ? 26 : 19)}px`;
+                btn.style.top = `${y - (item.main ? 26 : 19)}px`;
+                btn.style.width = item.main ? '52px' : '38px';
+                btn.style.height = item.main ? '52px' : '38px';
+
+                // Choose label based on current mode
+                const displayLabel = (labelMode === 'numbers') ? item.labelNum : item.labelNote;
+
+                const numberSpan = document.createElement('span');
+                numberSpan.className = item.main ? 'text-xl font-black tracking-tighter' : 'text-xs font-bold';
+                numberSpan.textContent = displayLabel;
+                btn.appendChild(numberSpan);
+
+                // Always show the other label small below (or note name when in numbers mode)
+                // Made larger for better readability on unselected buttons
+                const subLabel = document.createElement('div');
+                subLabel.className = 'note-label font-mono';
+                subLabel.style.fontSize = item.main ? '0.75rem' : '0.65rem';
+                subLabel.textContent = (labelMode === 'numbers') ? item.labelNote : item.labelNum;
+                btn.appendChild(subLabel);
+
+                // Play function
+                const playThis = () => {
+                    const freq = getFrequencyForSemitones(item.semi);
+                    playTone(freq, 900, true);
+                    btn.classList.add('active');
+                    openAdjustPanelForChromatic(displayLabel, item.semi, freq);
+                };
+
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    playThis();
+                });
+
+                btn.addEventListener('pointerup', () => {
+                    stopCurrentTone();
+                    btn.classList.remove('active');
+                });
+                btn.addEventListener('pointerleave', () => {
+                    stopCurrentTone();
+                    btn.classList.remove('active');
+                });
+
+                btn.addEventListener('click', () => {
+                    if (activeSlotId) {
+                        const freq = getFrequencyForSemitones(item.semi);
+                        playTone(freq, 650);
+                    }
+                });
+
+                container.appendChild(btn);
+            }
+        }
+
+        function toggleLabelMode() {
+            labelMode = (labelMode === 'numbers') ? 'notes' : 'numbers';
+            document.getElementById('label-mode-text').textContent = labelMode.toUpperCase();
+            createPitchPipe(); // re-render with new labels
+        }
+
+        function getNoteNameForDegree(degree) {
+            const noteNames = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+            const tonicBase = currentTonicNote.replace(/\d/, '');
+            let tonicIndex = noteNames.indexOf(tonicBase);
+            if (tonicIndex === -1) tonicIndex = 0;
+            const offset = scaleSemitones[degree - 1] || 0;
+            const newIndex = (tonicIndex + offset) % 12;
+            let octave = parseInt(currentTonicNote.slice(-1)) || 4;
+            if (newIndex < tonicIndex && offset > 0) octave++;
+            return noteNames[newIndex] + octave;
+        }
+
+        function getChromaticNoteName(semitones) {
+            const noteNames = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+            const tonicBase = currentTonicNote.replace(/\d/, '');
+            let tonicIndex = noteNames.indexOf(tonicBase);
+            if (tonicIndex === -1) tonicIndex = 0;
+            const newIndex = (tonicIndex + semitones) % 12;
+            let octave = parseInt(currentTonicNote.slice(-1)) || 4;
+            if (newIndex < tonicIndex && semitones > 0) octave++;
+            return noteNames[newIndex] + octave;
+        }
+
+        function getFrequencyForSemitones(semitones) {
+            return currentTonicFreq * Math.pow(2, semitones / 12);
+        }
+
+        function openAdjustPanelForChromatic(label, semitones, freq) {
+            currentAdjustDegree = null; // chromatic mode
+            currentAdjustCents = 0;
+
+            document.getElementById('adjust-current-note').innerHTML = `Chromatic <span class="font-black">${label}</span>`;
+            document.getElementById('adjust-base').textContent = getChromaticNoteName(semitones);
+            document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
+            document.getElementById('cents-slider').value = 0;
+            document.getElementById('adjust-cents-value').textContent = '0';
+        }
+
+        function updateAllNumberLabels() {
+            const container = document.getElementById('pitch-pipe');
+            const labels = container.querySelectorAll('.note-label');
+            labels.forEach((label, index) => {
+                label.textContent = getNoteNameForDegree(index + 1);
+            });
+        }
+
+        // ==================== ADJUST PANEL ====================
+        function openAdjustPanel(degree) {
+            currentAdjustDegree = degree;
+            currentAdjustCents = 0;
+
+            document.getElementById('adjust-current-note').innerHTML = `Degree <span class="font-black">${degree}</span> — ${getNoteNameForDegree(degree)}`;
+            document.getElementById('adjust-base').textContent = getNoteNameForDegree(degree);
+
+            const slider = document.getElementById('cents-slider');
+            slider.value = 0;
+            document.getElementById('adjust-cents-value').textContent = '0';
+
+            updateAdjustPanelPreview();
+        }
+
+        function updateAdjustPanel() {
+            if (!currentAdjustDegree) return;
+            const baseName = getNoteNameForDegree(currentAdjustDegree);
+            document.getElementById('adjust-current-note').innerHTML = `Degree <span class="font-black">${currentAdjustDegree}</span> — ${baseName}`;
+            document.getElementById('adjust-base').textContent = baseName;
+            updateAdjustPanelPreview();
+        }
+
+        function updateCentsFromSlider() {
+            currentAdjustCents = parseInt(document.getElementById('cents-slider').value);
+            document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
+            updateAdjustPanelPreview();
+            
+            // Live update active slot
+            if (activeSlotId) {
+                const slotIndex = customSlots.findIndex(s => s.id === activeSlotId);
+                if (slotIndex !== -1) {
+                    customSlots[slotIndex].cents = currentAdjustCents;
+                    updateSlotsDisplay();
+                }
+            }
+        }
+
+        function adjustCents(delta) {
+            currentAdjustCents = Math.max(-50, Math.min(50, currentAdjustCents + delta));
+            document.getElementById('cents-slider').value = currentAdjustCents;
+            document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
+            updateAdjustPanelPreview();
+            
+            // Live update active slot
+            if (activeSlotId) {
+                const slotIndex = customSlots.findIndex(s => s.id === activeSlotId);
+                if (slotIndex !== -1) {
+                    customSlots[slotIndex].cents = currentAdjustCents;
+                    updateSlotsDisplay();
+                }
+            }
+            
+            // Live preview play
+            if (currentAdjustDegree) {
+                const freq = getFrequencyForDegree(currentAdjustDegree, currentAdjustCents);
+                playTone(freq, 600);
+            }
+        }
+
+        function updateAdjustPanelPreview() {
+            if (!currentAdjustDegree) return;
+            const freq = getFrequencyForDegree(currentAdjustDegree, currentAdjustCents);
+            document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
+        }
+
+        function assignToSlot(slotId) {
+            if (!currentAdjustDegree) {
+                alert("Please tap a number on the big circular pipe first.");
+                return;
+            }
+
+            const slotIndex = customSlots.findIndex(s => s.id === slotId);
+            if (slotIndex === -1) return;
+
+            customSlots[slotIndex].baseDegree = currentAdjustDegree;
+            customSlots[slotIndex].cents = currentAdjustCents;
+            
+            // Smart label
+            const baseName = getNoteNameForDegree(currentAdjustDegree);
+            const sign = currentAdjustCents >= 0 ? '+' : '';
+            customSlots[slotIndex].label = `${baseName} ${sign}${currentAdjustCents}¢`;
+
+            updateSlotsDisplay();
+            
+            // Nice feedback
+            const container = document.getElementById('slots-container');
+            container.style.transition = 'all 0.2s';
+            container.style.boxShadow = '0 0 0 6px rgba(16, 185, 129, 0.3)';
+            setTimeout(() => {
+                container.style.boxShadow = '';
+            }, 600);
+
+            // Play it so user hears what they just assigned
+            const freq = getFrequencyForDegree(currentAdjustDegree, currentAdjustCents);
+            playTone(freq, 650);
+        }
+
+        function clearAllSlots() {
+            if (!confirm("Clear all 5 custom slots?")) return;
+            
+            customSlots.forEach((slot, i) => {
+                slot.baseDegree = i + 1;
+                slot.cents = 0;
+                slot.label = `Slot ${slot.id}`;
+            });
+            updateSlotsDisplay();
+        }
+
+        function clearAdjustPanel() {
+            currentAdjustDegree = null;
+            currentAdjustCents = 0;
+            document.getElementById('adjust-current-note').innerHTML = 'Select a number above';
+            document.getElementById('adjust-base').textContent = '—';
+            document.getElementById('adjust-freq').textContent = '— Hz';
+            document.getElementById('cents-slider').value = 0;
+            document.getElementById('adjust-cents-value').textContent = '0';
+        }
+
+        // ==================== SLOTS DISPLAY ====================
+        function updateSlotsDisplay() {
+            const container = document.getElementById('slots-container');
+            container.innerHTML = '';
+
+            customSlots.forEach(slot => {
+                const freq = getFrequencyForDegree(slot.baseDegree, slot.cents);
+                const baseName = getNoteNameForDegree(slot.baseDegree);
+
+                const card = document.createElement('div');
+                const isActive = activeSlotId === slot.id;
+                card.className = `slot-card-side slot-btn cursor-pointer active:scale-[0.97] transition-all ${isActive ? 'slot-active' : ''}`;
+                
+                card.innerHTML = `
+                    <div style="font-size:0.6rem;color:#f59e0b;font-weight:700;letter-spacing:0.05em">S${slot.id}</div>
+                    <div style="font-family:monospace;font-size:1.1rem;font-weight:900;color:#6ee7b7;line-height:1">${slot.baseDegree}</div>
+                    <div style="font-size:0.6rem;color:#a1a1aa">${baseName}</div>
+                    <div style="font-size:0.6rem;font-family:monospace;${slot.cents >= 0 ? 'color:#34d399' : 'color:#f87171'}">${slot.cents >= 0 ? '+' : ''}${slot.cents}¢</div>
+                `;
+
+                let playing = false;
+                card.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    const f = getFrequencyForDegree(slot.baseDegree, slot.cents);
+                    playTone(f, 1200, true);
+                    card.style.borderColor = '#f59e0b';
+                    playing = true;
+                });
+                card.addEventListener('pointerup', () => {
+                    if (playing) { stopCurrentTone(); card.style.borderColor = ''; playing = false; }
+                });
+                card.addEventListener('pointerleave', () => {
+                    if (playing) { stopCurrentTone(); card.style.borderColor = ''; playing = false; }
+                });
+                card.addEventListener('click', () => {
+                    const f = getFrequencyForDegree(slot.baseDegree, slot.cents);
+                    playTone(f, 650);
+
+                    document.querySelectorAll('#slots-container .slot-card-side').forEach(c => c.classList.remove('slot-active'));
+                    card.classList.add('slot-active');
+                    activeSlotId = slot.id;
+
+                    currentAdjustDegree = slot.baseDegree;
+                    currentAdjustCents = slot.cents;
+                    document.getElementById('adjust-current-note').innerHTML = `Editing <span class="font-black">Slot ${slot.id}</span> \u2014 ${getNoteNameForDegree(slot.baseDegree)}`;
+                    document.getElementById('adjust-base').textContent = getNoteNameForDegree(slot.baseDegree);
+                    document.getElementById('cents-slider').value = currentAdjustCents;
+                    document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
+                    updateAdjustPanelPreview();
+                });
+
+                container.appendChild(card);
+            });
+        }
+
+        function editSlot(slotId) {
+            const slot = customSlots.find(s => s.id === slotId);
+            if (!slot) return;
+
+            currentAdjustDegree = slot.baseDegree;
+            currentAdjustCents = slot.cents;
+
+            // Open and populate adjust panel
+            document.getElementById('adjust-current-note').innerHTML = `Editing Slot ${slotId} — Degree <span class="font-black">${slot.baseDegree}</span>`;
+            document.getElementById('adjust-base').textContent = getNoteNameForDegree(slot.baseDegree);
+            
+            const slider = document.getElementById('cents-slider');
+            slider.value = currentAdjustCents;
+            document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
+
+            updateAdjustPanelPreview();
+
+            // Change save buttons to "Update Slot X"
+            const saveBtns = document.querySelectorAll('.slot-save-btn');
+            saveBtns.forEach((btn, idx) => {
+                const originalText = btn.textContent;
+                btn.textContent = `Update ${idx + 1}`;
+                btn.onclick = () => {
+                    // Update this specific slot
+                    const targetSlot = customSlots.find(s => s.id === (idx + 1));
+                    if (targetSlot && currentAdjustDegree) {
+                        targetSlot.baseDegree = currentAdjustDegree;
+                        targetSlot.cents = currentAdjustCents;
+                        if (targetSlot.label.startsWith('Custom') || targetSlot.label.includes('Dirty')) {
+                            targetSlot.label = `${getNoteNameForDegree(currentAdjustDegree)} ${currentAdjustCents >= 0 ? '+' : ''}${currentAdjustCents}¢`;
+                        }
+                        updateSlotsDisplay();
+                        // restore original onclicks later
+                    }
+                    // Reset panel
+                    clearAdjustPanel();
+                };
+            });
+
+            // Scroll to panel
+            document.getElementById('adjust-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // ==================== INITIALIZATION ====================
+        function initializeApp() {
+            // Default key
+            currentTonicFreq = noteFrequencies['C4'];
+            currentTonicNote = 'C4';
+
+            createKeyButtons();
+            createPitchPipe();
+            updateSlotsDisplay();
+
+            // Initial labels
+            setTimeout(() => {
+                updateAllNumberLabels();
+            }, 50);
+
+            // Keyboard support
+            document.addEventListener('keydown', (e) => {
+                if (e.key >= '1' && e.key <= '8') {
+                    const deg = parseInt(e.key);
+                    const freq = getFrequencyForDegree(deg);
+                    playTone(freq, 650);
+                    openAdjustPanel(deg);
+                }
+                if (e.key.toLowerCase() === 's') stopCurrentTone();
+            });
+
+            // Mobile audio unlock
+            const unlock = () => {
+                initAudio();
+                document.removeEventListener('touchstart', unlock);
+                document.removeEventListener('click', unlock);
+            };
+            document.addEventListener('touchstart', unlock, { once: true });
+            document.addEventListener('click', unlock, { once: true });
+
+            // Auto open adjust for degree 7 as example (common dirty note)
+            setTimeout(() => {
+                // Uncomment if you want demo: openAdjustPanel(7); currentAdjustCents = -14; etc.
+            }, 800);
+
+            console.log('%c[CQS Micro Pitch Pipe] Ready with dirty note slots!', 'color:#854d0e');
+
+            // Make it feel more like a native app (prevent browser behaviors)
+            // Prevent long-press context menu / copy
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+            
+            // Prevent text selection on interactive elements (extra safety)
+            document.addEventListener('selectstart', (e) => {
+                if (e.target.tagName === 'BUTTON' || e.target.closest('.slot-btn') || e.target.closest('.number-btn')) {
+                    e.preventDefault();
+                }
+            });
+
+            // Optional: Double-tap prevention on buttons
+            let lastTap = 0;
+            document.addEventListener('touchend', (e) => {
+                const now = Date.now();
+                if (now - lastTap < 300 && (e.target.tagName === 'BUTTON' || e.target.closest('.number-btn') || e.target.closest('.slot-btn'))) {
+                    e.preventDefault();
+                }
+                lastTap = now;
+            }, { passive: false });
+        }
+
+        window.onload = initializeApp;
+
+        // Expose for advanced use
+        window.CQSMicroPipe = {
+            setKey: (note) => setKey(note),
+            playDegree: (deg) => {
+                const f = getFrequencyForDegree(deg);
+                playTone(f, 700);
+            },
+            getSlots: () => customSlots
+        };
+    </script>
+</body>
+</html>
