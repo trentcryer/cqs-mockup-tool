@@ -638,10 +638,8 @@
                 btn.classList.toggle('active-key', active);
             });
 
-            // Recreate pitch pipe to display labels correctly with new key (keeps same mode)
-            createPitchPipe();
-
             // Update all visuals
+            updateAllNumberLabels();
             updateSlotsDisplay();
             if (activeSlotId !== null) selectSlot(activeSlotId);
         }
@@ -834,18 +832,12 @@
 
         function updateAllNumberLabels() {
             const container = document.getElementById('pitch-pipe');
-            const buttons = container.querySelectorAll('.number-btn');
-
-            // Update all 15 chromatic buttons with their note names
-            buttons.forEach((btn, index) => {
-                const noteLabel = btn.querySelector('.note-label');
-                if (noteLabel) {
-                    // The chromatic array has the semitone for each button
-                    // Get the note name for that semitone in the current key
-                    const semi = Math.round(index % 15); // 0-14 for the chromatic scale
-                    const noteName = getChromaticNoteName(semi);
-                    noteLabel.textContent = noteName;
-                }
+            const labels = container.querySelectorAll('.note-label');
+            labels.forEach((label, index) => {
+                // Get the semitone for this chromatic button (not scale degree)
+                const chromatic = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+                const semi = chromatic[index] || 0;
+                label.textContent = getChromaticNoteName(semi);
             });
         }
 
