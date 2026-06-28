@@ -1114,6 +1114,13 @@
             document.addEventListener('touchstart', unlock, { once: true });
             document.addEventListener('click', unlock, { once: true });
 
+            // Recalculate pitch pipe on window resize (for landscape mode)
+            window.addEventListener('resize', () => {
+                if (landscapeModeActive) {
+                    createPitchPipe();
+                }
+            });
+
             // Auto open adjust for degree 7 as example (common dirty note)
             setTimeout(() => {
                 // Uncomment if you want demo: openAdjustPanel(7); currentAdjustCents = -14; etc.
@@ -1175,6 +1182,11 @@
                     console.log('Orientation unlock not supported');
                 }
             }
+
+            // Recalculate pitch pipe for new container size
+            setTimeout(() => {
+                createPitchPipe();
+            }, 100);
         }
 
         window.onload = initializeApp;
