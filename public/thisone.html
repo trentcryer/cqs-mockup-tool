@@ -217,8 +217,14 @@
         }
 
         .slot-card-side.slot-active {
-            border-color: #f59e0b;
-            box-shadow: 0 0 0 3px rgba(245,158,11,0.35);
+            border-color: #fbbf24;
+            background: #1c1a10;
+            box-shadow: 0 0 0 2px #f59e0b, 0 0 14px 3px rgba(245,158,11,0.55);
+        }
+
+        .slot-card-side.playing-sustain {
+            border-color: #34d399;
+            box-shadow: 0 0 0 2px #34d399, 0 0 12px 2px rgba(52,211,153,0.4);
         }
     </style>
 </head>
@@ -365,9 +371,8 @@
 
         let currentTonicFreq = 261.63; // C4 default
         let currentTonicNote = "C4";
-        let currentAdjustDegree = null; // 1-8 or null
         let currentAdjustCents = 0;
-        let activeSlotId = null; // Currently selected slot for editing
+        let activeSlotId = null; // Currently selected slot id
         let labelMode = 'numbers'; // 'numbers' or 'notes'
 
         // 5 Custom slots in sequence order for the tag
@@ -451,19 +456,23 @@
         }
 
         function stopCurrentTone() {
-            if (currentGain) {
-                const now = audioContext.currentTime;
-                currentGain.gain.cancelScheduledValues(now);
-                // Much longer, smoother release to completely kill click/static/drum sound
-                currentGain.gain.linearRampToValueAtTime(0.00001, now + 0.5);
-            }
-            if (currentOscillator) {
-                setTimeout(() => {
-                    try { currentOscillator.stop(); } catch(e) {}
-                    currentOscillator = null;
-                    currentGain = null;
-                }, 550);
-            }
+            if (!currentOscillator || !currentGain) return;
+
+            const now = audioContext.currentTime;
+            const oscToStop = currentOscillator;
+            const gainToStop = currentGain;
+
+            currentOscillator = null;
+            currentGain = null;
+
+            gainToStop.gain.cancelScheduledValues(now);
+            gainToStop.gain.setValueAtTime(gainToStop.gain.value, now);
+            // Quick, smooth release (150ms) to prevent clicks while stopping cleanly
+            gainToStop.gain.linearRampToValueAtTime(0, now + 0.15);
+
+            setTimeout(() => {
+                try { oscToStop.stop(); } catch(e) {}
+            }, 160);
         }
 
         // ==================== UI RENDERING ====================
@@ -500,9 +509,7 @@
             // Update all visuals
             updateAllNumberLabels();
             updateSlotsDisplay();
-            if (currentAdjustDegree) {
-                updateAdjustPanel();
-            }
+            if (activeSlotId !== null) selectSlot(activeSlotId);
         }
 
         function createPitchPipe() {
@@ -586,33 +593,53 @@
                 subLabel.textContent = (labelMode === 'numbers') ? item.labelNote : item.labelNum;
                 btn.appendChild(subLabel);
 
-                // Play function
+                // Play function — called on pointerdown
                 const playThis = () => {
                     const freq = getFrequencyForSemitones(item.semi);
-                    playTone(freq, 900, true);
+                    playTone(freq, 99999, true); // sustain indefinitely
                     btn.classList.add('active');
-                    openAdjustPanelForChromatic(displayLabel, item.semi, freq);
+
+                    // If a slot is active, immediately assign this note to it
+                    if (activeSlotId !== null) {
+                        const slotIndex = customSlots.findIndex(s => s.id === activeSlotId);
+                        if (slotIndex !== -1) {
+                            customSlots[slotIndex].baseSemi = item.semi;
+                            customSlots[slotIndex].labelNum = item.labelNum;
+                            customSlots[slotIndex].labelNote = item.labelNote;
+                            customSlots[slotIndex].cents = 0; // reset cents when new note picked
+                            currentAdjustCents = 0;
+                            document.getElementById('cents-slider').value = 0;
+                            document.getElementById('adjust-cents-value').textContent = '0';
+
+                            // Targeted update instead of full rebuild to preserve glow
+                            updateSlotCardDisplay(activeSlotId);
+                            selectSlot(activeSlotId);
+                        }
+                    }
+
+                    // Update adjust panel to show this note
+                    document.getElementById('adjust-current-note').innerHTML = activeSlotId !== null
+                        ? `Slot ${activeSlotId} &mdash; <span class="font-black">${displayLabel}</span>`
+                        : `Note <span class="font-black">${displayLabel}</span>`;
+                    document.getElementById('adjust-base').textContent = getChromaticNoteName(Math.round(item.semi));
+                    document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
                 };
 
                 btn.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
+                    btn.setPointerCapture(e.pointerId);
                     playThis();
                 });
 
-                btn.addEventListener('pointerup', () => {
-                    stopCurrentTone();
-                    btn.classList.remove('active');
-                });
-                btn.addEventListener('pointerleave', () => {
+                btn.addEventListener('pointerup', (e) => {
+                    e.preventDefault();
                     stopCurrentTone();
                     btn.classList.remove('active');
                 });
 
-                btn.addEventListener('click', () => {
-                    if (activeSlotId) {
-                        const freq = getFrequencyForSemitones(item.semi);
-                        playTone(freq, 650);
-                    }
+                btn.addEventListener('pointercancel', (e) => {
+                    stopCurrentTone();
+                    btn.classList.remove('active');
                 });
 
                 container.appendChild(btn);
@@ -652,17 +679,6 @@
             return currentTonicFreq * Math.pow(2, semitones / 12);
         }
 
-        function openAdjustPanelForChromatic(label, semitones, freq) {
-            currentAdjustDegree = null; // chromatic mode
-            currentAdjustCents = 0;
-
-            document.getElementById('adjust-current-note').innerHTML = `Chromatic <span class="font-black">${label}</span>`;
-            document.getElementById('adjust-base').textContent = getChromaticNoteName(semitones);
-            document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
-            document.getElementById('cents-slider').value = 0;
-            document.getElementById('adjust-cents-value').textContent = '0';
-        }
-
         function updateAllNumberLabels() {
             const container = document.getElementById('pitch-pipe');
             const labels = container.querySelectorAll('.note-label');
@@ -672,122 +688,96 @@
         }
 
         // ==================== ADJUST PANEL ====================
-        function openAdjustPanel(degree) {
-            currentAdjustDegree = degree;
-            currentAdjustCents = 0;
-
-            document.getElementById('adjust-current-note').innerHTML = `Degree <span class="font-black">${degree}</span> — ${getNoteNameForDegree(degree)}`;
-            document.getElementById('adjust-base').textContent = getNoteNameForDegree(degree);
-
-            const slider = document.getElementById('cents-slider');
-            slider.value = 0;
-            document.getElementById('adjust-cents-value').textContent = '0';
-
-            updateAdjustPanelPreview();
-        }
-
-        function updateAdjustPanel() {
-            if (!currentAdjustDegree) return;
-            const baseName = getNoteNameForDegree(currentAdjustDegree);
-            document.getElementById('adjust-current-note').innerHTML = `Degree <span class="font-black">${currentAdjustDegree}</span> — ${baseName}`;
-            document.getElementById('adjust-base').textContent = baseName;
-            updateAdjustPanelPreview();
-        }
-
         function updateCentsFromSlider() {
             currentAdjustCents = parseInt(document.getElementById('cents-slider').value);
             document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
-            updateAdjustPanelPreview();
-            
-            // Live update active slot
-            if (activeSlotId) {
-                const slotIndex = customSlots.findIndex(s => s.id === activeSlotId);
-                if (slotIndex !== -1) {
-                    customSlots[slotIndex].cents = currentAdjustCents;
-                    updateSlotsDisplay();
-                }
-            }
+            applyLiveCentsToActiveSlot();
         }
 
         function adjustCents(delta) {
             currentAdjustCents = Math.max(-50, Math.min(50, currentAdjustCents + delta));
             document.getElementById('cents-slider').value = currentAdjustCents;
             document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
-            updateAdjustPanelPreview();
-            
-            // Live update active slot
-            if (activeSlotId) {
-                const slotIndex = customSlots.findIndex(s => s.id === activeSlotId);
-                if (slotIndex !== -1) {
-                    customSlots[slotIndex].cents = currentAdjustCents;
-                    updateSlotsDisplay();
-                }
-            }
-            
-            // Live preview play
-            if (currentAdjustDegree) {
-                const freq = getFrequencyForDegree(currentAdjustDegree, currentAdjustCents);
-                playTone(freq, 600);
+            applyLiveCentsToActiveSlot();
+        }
+
+        function updateSlotCardDisplay(slotId) {
+            const card = document.querySelector(`#slots-container [data-slot-id="${slotId}"]`);
+            if (!card) return;
+
+            const slot = customSlots.find(s => s.id === slotId);
+            if (!slot) return;
+
+            const displayNum = slot.labelNum || slot.baseDegree;
+            const baseName = slot.labelNote || getNoteNameForDegree(slot.baseDegree);
+
+            // Update children directly without rebuilding the card element
+            const children = card.querySelectorAll('div');
+            if (children[0]) children[0].textContent = `S${slot.id}`;
+            if (children[1]) children[1].textContent = displayNum;
+            if (children[2]) children[2].textContent = baseName;
+            if (children[3]) {
+                children[3].style.color = slot.cents >= 0 ? '#34d399' : '#f87171';
+                children[3].textContent = `${slot.cents >= 0 ? '+' : ''}${slot.cents}¢`;
             }
         }
 
+        function applyLiveCentsToActiveSlot() {
+            if (activeSlotId === null) return;
+            const slot = customSlots.find(s => s.id === activeSlotId);
+            if (!slot) return;
+            slot.cents = currentAdjustCents;
+
+            // Update freq display
+            const freq = getSlotFrequency(slot);
+            document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
+
+            // Refresh just this slot's card without full re-render
+            updateSlotCardDisplay(activeSlotId);
+        }
+
         function updateAdjustPanelPreview() {
-            if (!currentAdjustDegree) return;
-            const freq = getFrequencyForDegree(currentAdjustDegree, currentAdjustCents);
+            if (activeSlotId === null) return;
+            const slot = customSlots.find(s => s.id === activeSlotId);
+            if (!slot) return;
+            const freq = getSlotFrequency(slot);
             document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
         }
 
         function assignToSlot(slotId) {
-            if (!currentAdjustDegree) {
-                alert("Please tap a number on the big circular pipe first.");
+            // Legacy button — now slots auto-assign on note press, but this still works as explicit assign
+            if (activeSlotId === null && currentAdjustCents === 0) {
+                alert("Tap a note on the pipe first to load it, then assign.");
                 return;
             }
-
-            const slotIndex = customSlots.findIndex(s => s.id === slotId);
-            if (slotIndex === -1) return;
-
-            customSlots[slotIndex].baseDegree = currentAdjustDegree;
-            customSlots[slotIndex].cents = currentAdjustCents;
-            
-            // Smart label
-            const baseName = getNoteNameForDegree(currentAdjustDegree);
-            const sign = currentAdjustCents >= 0 ? '+' : '';
-            customSlots[slotIndex].label = `${baseName} ${sign}${currentAdjustCents}¢`;
-
-            updateSlotsDisplay();
-            
-            // Nice feedback
-            const container = document.getElementById('slots-container');
-            container.style.transition = 'all 0.2s';
-            container.style.boxShadow = '0 0 0 6px rgba(16, 185, 129, 0.3)';
-            setTimeout(() => {
-                container.style.boxShadow = '';
-            }, 600);
-
-            // Play it so user hears what they just assigned
-            const freq = getFrequencyForDegree(currentAdjustDegree, currentAdjustCents);
-            playTone(freq, 650);
+            // Just activate that slot
+            selectSlot(slotId);
         }
 
         function clearAllSlots() {
             if (!confirm("Clear all 5 custom slots?")) return;
-            
             customSlots.forEach((slot, i) => {
                 slot.baseDegree = i + 1;
                 slot.cents = 0;
+                delete slot.baseSemi;
+                delete slot.labelNum;
+                delete slot.labelNote;
                 slot.label = `Slot ${slot.id}`;
             });
+            activeSlotId = null;
             updateSlotsDisplay();
+            clearAdjustPanel();
         }
 
         function clearAdjustPanel() {
-            currentAdjustDegree = null;
+            activeSlotId = null;
             currentAdjustCents = 0;
-            document.getElementById('adjust-current-note').innerHTML = 'Select a number above';
+            document.getElementById('adjust-current-note').innerHTML = 'Select a slot or tap a note';
             document.getElementById('adjust-base').textContent = '—';
             document.getElementById('adjust-freq').textContent = '— Hz';
             document.getElementById('cents-slider').value = 0;
             document.getElementById('adjust-cents-value').textContent = '0';
+            document.querySelectorAll('#slots-container .slot-card-side').forEach(c => c.classList.remove('slot-active'));
         }
 
         // ==================== SLOTS DISPLAY ====================
@@ -796,96 +786,88 @@
             container.innerHTML = '';
 
             customSlots.forEach(slot => {
-                const freq = getFrequencyForDegree(slot.baseDegree, slot.cents);
-                const baseName = getNoteNameForDegree(slot.baseDegree);
+                const baseName = slot.labelNote
+                    ? slot.labelNote + (slot.cents !== 0 ? ` ${slot.cents > 0 ? '+' : ''}${slot.cents}¢` : '')
+                    : getNoteNameForDegree(slot.baseDegree);
+                const displayNum = slot.labelNum || slot.baseDegree;
 
                 const card = document.createElement('div');
                 const isActive = activeSlotId === slot.id;
-                card.className = `slot-card-side slot-btn cursor-pointer active:scale-[0.97] transition-all ${isActive ? 'slot-active' : ''}`;
-                
+                card.className = `slot-card-side slot-btn cursor-pointer transition-all ${isActive ? 'slot-active' : ''}`;
+                card.dataset.slotId = slot.id;
+
                 card.innerHTML = `
                     <div style="font-size:0.6rem;color:#f59e0b;font-weight:700;letter-spacing:0.05em">S${slot.id}</div>
-                    <div style="font-family:monospace;font-size:1.1rem;font-weight:900;color:#6ee7b7;line-height:1">${slot.baseDegree}</div>
-                    <div style="font-size:0.6rem;color:#a1a1aa">${baseName}</div>
+                    <div style="font-family:monospace;font-size:1.15rem;font-weight:900;color:#6ee7b7;line-height:1.1">${displayNum}</div>
+                    <div style="font-size:0.55rem;color:#a1a1aa;line-height:1.2">${slot.labelNote || getNoteNameForDegree(slot.baseDegree)}</div>
                     <div style="font-size:0.6rem;font-family:monospace;${slot.cents >= 0 ? 'color:#34d399' : 'color:#f87171'}">${slot.cents >= 0 ? '+' : ''}${slot.cents}¢</div>
                 `;
 
-                let playing = false;
+                // HOLD = sustain note, RELEASE = stop
+                let holding = false;
                 card.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
-                    const f = getFrequencyForDegree(slot.baseDegree, slot.cents);
-                    playTone(f, 1200, true);
-                    card.style.borderColor = '#f59e0b';
-                    playing = true;
-                });
-                card.addEventListener('pointerup', () => {
-                    if (playing) { stopCurrentTone(); card.style.borderColor = ''; playing = false; }
-                });
-                card.addEventListener('pointerleave', () => {
-                    if (playing) { stopCurrentTone(); card.style.borderColor = ''; playing = false; }
-                });
-                card.addEventListener('click', () => {
-                    const f = getFrequencyForDegree(slot.baseDegree, slot.cents);
-                    playTone(f, 650);
+                    card.setPointerCapture(e.pointerId);
 
-                    document.querySelectorAll('#slots-container .slot-card-side').forEach(c => c.classList.remove('slot-active'));
-                    card.classList.add('slot-active');
-                    activeSlotId = slot.id;
+                    // Select this slot
+                    selectSlot(slot.id);
 
-                    currentAdjustDegree = slot.baseDegree;
-                    currentAdjustCents = slot.cents;
-                    document.getElementById('adjust-current-note').innerHTML = `Editing <span class="font-black">Slot ${slot.id}</span> \u2014 ${getNoteNameForDegree(slot.baseDegree)}`;
-                    document.getElementById('adjust-base').textContent = getNoteNameForDegree(slot.baseDegree);
-                    document.getElementById('cents-slider').value = currentAdjustCents;
-                    document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
-                    updateAdjustPanelPreview();
+                    // Play and sustain
+                    const freq = getSlotFrequency(slot);
+                    playTone(freq, 99999, true);
+                    card.classList.add('playing-sustain');
+                    holding = true;
+                });
+
+                card.addEventListener('pointerup', (e) => {
+                    if (holding) {
+                        stopCurrentTone();
+                        card.classList.remove('playing-sustain');
+                        holding = false;
+                    }
+                });
+
+                card.addEventListener('pointercancel', () => {
+                    if (holding) {
+                        stopCurrentTone();
+                        card.classList.remove('playing-sustain');
+                        holding = false;
+                    }
                 });
 
                 container.appendChild(card);
             });
         }
 
-        function editSlot(slotId) {
+        function getSlotFrequency(slot) {
+            if (slot.baseSemi !== undefined) {
+                return getFrequencyForSemitones(slot.baseSemi) * Math.pow(2, slot.cents / 1200);
+            }
+            return getFrequencyForDegree(slot.baseDegree, slot.cents);
+        }
+
+        function selectSlot(slotId) {
+            activeSlotId = slotId;
             const slot = customSlots.find(s => s.id === slotId);
             if (!slot) return;
 
-            currentAdjustDegree = slot.baseDegree;
-            currentAdjustCents = slot.cents;
-
-            // Open and populate adjust panel
-            document.getElementById('adjust-current-note').innerHTML = `Editing Slot ${slotId} — Degree <span class="font-black">${slot.baseDegree}</span>`;
-            document.getElementById('adjust-base').textContent = getNoteNameForDegree(slot.baseDegree);
-            
-            const slider = document.getElementById('cents-slider');
-            slider.value = currentAdjustCents;
-            document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
-
-            updateAdjustPanelPreview();
-
-            // Change save buttons to "Update Slot X"
-            const saveBtns = document.querySelectorAll('.slot-save-btn');
-            saveBtns.forEach((btn, idx) => {
-                const originalText = btn.textContent;
-                btn.textContent = `Update ${idx + 1}`;
-                btn.onclick = () => {
-                    // Update this specific slot
-                    const targetSlot = customSlots.find(s => s.id === (idx + 1));
-                    if (targetSlot && currentAdjustDegree) {
-                        targetSlot.baseDegree = currentAdjustDegree;
-                        targetSlot.cents = currentAdjustCents;
-                        if (targetSlot.label.startsWith('Custom') || targetSlot.label.includes('Dirty')) {
-                            targetSlot.label = `${getNoteNameForDegree(currentAdjustDegree)} ${currentAdjustCents >= 0 ? '+' : ''}${currentAdjustCents}¢`;
-                        }
-                        updateSlotsDisplay();
-                        // restore original onclicks later
-                    }
-                    // Reset panel
-                    clearAdjustPanel();
-                };
+            // Update active highlight on all cards without full re-render
+            document.querySelectorAll('#slots-container .slot-card-side').forEach(c => {
+                c.classList.toggle('slot-active', parseInt(c.dataset.slotId) === slotId);
             });
 
-            // Scroll to panel
-            document.getElementById('adjust-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Load slot state into adjust panel
+            currentAdjustCents = slot.cents || 0;
+            document.getElementById('cents-slider').value = currentAdjustCents;
+            document.getElementById('adjust-cents-value').textContent = currentAdjustCents;
+
+            const noteLabel = slot.labelNum || slot.baseDegree;
+            const noteName = slot.labelNote || getNoteNameForDegree(slot.baseDegree);
+            document.getElementById('adjust-current-note').innerHTML = `Slot ${slotId} &mdash; <span class="font-black">${noteLabel}</span> (${noteName})`;
+            document.getElementById('adjust-base').textContent = noteName;
+
+            const freq = getSlotFrequency(slot);
+            document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
         }
 
         // ==================== INITIALIZATION ====================
@@ -903,14 +885,8 @@
                 updateAllNumberLabels();
             }, 50);
 
-            // Keyboard support
+            // Keyboard support (number keys 1-8 play that scale degree while held — simplified)
             document.addEventListener('keydown', (e) => {
-                if (e.key >= '1' && e.key <= '8') {
-                    const deg = parseInt(e.key);
-                    const freq = getFrequencyForDegree(deg);
-                    playTone(freq, 650);
-                    openAdjustPanel(deg);
-                }
                 if (e.key.toLowerCase() === 's') stopCurrentTone();
             });
 
