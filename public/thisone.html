@@ -681,9 +681,10 @@
 
             // Chromatic with .5 style for half steps (big = main 1-8, small = .5)
             // Exactly 15 items: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8
+            // All 15 unique semitone values (covers 1.25 octaves: semitones 0-14)
             const chromatic = [
                 { labelNum: "1",    labelNote: "C",   semi: 0,  main: true  },
-                { labelNum: "1.5",  labelNote: "C#",  semi: 1,  main: false },
+                { labelNum: "1.5",  labelNote: "Db",  semi: 1,  main: false },
                 { labelNum: "2",    labelNote: "D",   semi: 2,  main: true  },
                 { labelNum: "2.5",  labelNote: "Eb",  semi: 3,  main: false },
                 { labelNum: "3",    labelNote: "E",   semi: 4,  main: true  },
@@ -691,12 +692,12 @@
                 { labelNum: "4",    labelNote: "F#",  semi: 6,  main: true  },
                 { labelNum: "4.5",  labelNote: "G",   semi: 7,  main: false },
                 { labelNum: "5",    labelNote: "G#",  semi: 8,  main: true  },
-                { labelNum: "5.5",  labelNote: "Ab",  semi: 8,  main: false },
-                { labelNum: "6",    labelNote: "A",   semi: 9,  main: true  },
-                { labelNum: "6.5",  labelNote: "Bb",  semi: 10, main: false },
-                { labelNum: "7",    labelNote: "B",   semi: 11, main: true  },
-                { labelNum: "7.5",  labelNote: "B+",  semi: 11.5, main: false },
-                { labelNum: "8",    labelNote: "C",   semi: 12, main: true  }
+                { labelNum: "5.5",  labelNote: "A",   semi: 9,  main: false },
+                { labelNum: "6",    labelNote: "Bb",  semi: 10, main: true  },
+                { labelNum: "6.5",  labelNote: "B",   semi: 11, main: false },
+                { labelNum: "7",    labelNote: "C",   semi: 12, main: true  },
+                { labelNum: "7.5",  labelNote: "C#",  semi: 13, main: false },
+                { labelNum: "8",    labelNote: "D",   semi: 14, main: true  }
             ];
 
             for (let idx = 0; idx < chromatic.length; idx++) {
