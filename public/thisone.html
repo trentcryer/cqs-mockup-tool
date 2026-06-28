@@ -576,10 +576,12 @@
             stopCurrentSample();
         }
 
-        // Smart playTone: uses piano sample if cents=0, else uses oscillator
+        // Smart playTone: uses piano sample for higher notes (5-8), oscillator for lower notes (1-4) and adjustments
         async function playTone(frequency, durationMs = 800, sustain = false, cents = 0) {
             initAudio();
             stopAll();
+
+            const semitones = Math.round(12 * Math.log2(frequency / currentTonicFreq));
 
             // If micro-adjusted (cents ≠ 0), use oscillator
             if (cents !== 0) {
@@ -587,8 +589,13 @@
                 return;
             }
 
-            // Otherwise, try to use piano sample
-            const semitones = Math.round(12 * Math.log2(frequency / currentTonicFreq));
+            // Use oscillator for lower notes (notes 1-4, semitones 0-6) for cleaner sound
+            if (semitones < 7) {
+                playToneOscillator(frequency, durationMs, sustain);
+                return;
+            }
+
+            // Use piano samples for higher notes (notes 5-8, semitones 7-14)
             const noteName = getSampleNoteName(semitones);
 
             const sampleNode = await playSample(noteName);
