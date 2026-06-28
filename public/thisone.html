@@ -1091,7 +1091,7 @@
             createPitchPipe();
             updateSlotsDisplay();
 
-            // Preload piano samples for the 15 chromatic notes in the default key
+            // Initialize audio context and preload samples IMMEDIATELY (don't wait for user interaction)
             initAudio();
             preloadChromatic();
 
@@ -1105,14 +1105,16 @@
                 if (e.key.toLowerCase() === 's') stopAll();
             });
 
-            // Mobile audio unlock
-            const unlock = () => {
-                initAudio();
-                document.removeEventListener('touchstart', unlock);
-                document.removeEventListener('click', unlock);
+            // Ensure audio is ready immediately on any interaction (already preloaded on init, this just resumes if suspended)
+            const quickUnlock = () => {
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().catch(() => {});
+                }
+                document.removeEventListener('touchstart', quickUnlock);
+                document.removeEventListener('click', quickUnlock);
             };
-            document.addEventListener('touchstart', unlock, { once: true });
-            document.addEventListener('click', unlock, { once: true });
+            document.addEventListener('touchstart', quickUnlock, { once: true });
+            document.addEventListener('click', quickUnlock, { once: true });
 
             // Recalculate pitch pipe on window resize (for landscape mode)
             window.addEventListener('resize', () => {
