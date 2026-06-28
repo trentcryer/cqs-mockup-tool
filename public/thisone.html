@@ -437,10 +437,62 @@
             return baseFreq * Math.pow(2, cents / 1200);
         }
 
-        function playTone(frequency, durationMs = 800, sustain = false) {
+        function getMidiNoteName(midiNote) {
+            const octave = Math.floor(midiNote / 12) - 1;
+            const noteNames = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
+            const noteName = noteNames[midiNote % 12];
+            return `${noteName}${octave}`;
+        }
+
+        async function playTone(frequency, durationMs = 800, sustain = false) {
             initAudio();
             stopCurrentTone();
 
+            try {
+                const midiNote = Math.round(12 * Math.log2(frequency / 440) + 69);
+                const noteName = getMidiNoteName(midiNote);
+                const url = `https://gleitz.github.io/midi.js-soundfonts/MuseScore_General/acoustic_grand_piano-mp3/${noteName}.mp3`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to load ${noteName}`);
+
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                const source = audioContext.createBufferSource();
+                const gain = audioContext.createGain();
+
+                source.buffer = audioBuffer;
+                source.connect(gain);
+                gain.connect(masterGain);
+
+                const now = audioContext.currentTime;
+
+                if (sustain) {
+                    source.loop = true;
+                    source.loopStart = 0;
+                    source.loopEnd = audioBuffer.duration;
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.75, now + 0.05);
+                } else {
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.75, now + 0.05);
+                    gain.gain.linearRampToValueAtTime(0.0001, now + (durationMs / 1000) * 0.9);
+                    source.stop(now + (durationMs / 1000) + 0.35);
+                }
+
+                source.start(now);
+                currentOscillator = source;
+                currentGain = gain;
+
+                return { source, gain };
+            } catch (error) {
+                console.error('Error loading piano sample:', error);
+                playToneFallback(frequency, durationMs, sustain);
+            }
+        }
+
+        function playToneFallback(frequency, durationMs = 800, sustain = false) {
             const osc = audioContext.createOscillator();
             osc.type = 'sine';
             osc.frequency.value = frequency;
@@ -448,12 +500,7 @@
             const gain = audioContext.createGain();
             gain.gain.value = 0;
 
-            const filter = audioContext.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 1600;
-
-            osc.connect(filter);
-            filter.connect(gain);
+            osc.connect(gain);
             gain.connect(masterGain);
 
             const now = audioContext.currentTime;
@@ -461,17 +508,14 @@
             if (sustain) {
                 gain.gain.setValueAtTime(0, now);
                 gain.gain.linearRampToValueAtTime(0.85, now + 0.03);
-                // Will be stopped manually
             } else {
                 gain.gain.setValueAtTime(0, now);
                 gain.gain.linearRampToValueAtTime(0.85, now + 0.025);
-                // Smoother longer release to prevent click
                 gain.gain.linearRampToValueAtTime(0.0001, now + (durationMs / 1000) * 0.9);
                 osc.stop(now + (durationMs / 1000) + 0.35);
             }
 
             osc.start(now);
-
             currentOscillator = osc;
             currentGain = gain;
 
