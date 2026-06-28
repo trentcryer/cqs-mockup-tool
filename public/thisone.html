@@ -456,18 +456,33 @@
         }
 
         function stopCurrentTone() {
-            if (currentGain) {
+            if (!audioContext || !currentOscillator || !currentGain) return;
+
+            try {
                 const now = audioContext.currentTime;
-                currentGain.gain.cancelScheduledValues(now);
-                // Much longer, smoother release to completely kill click/static/drum sound
-                currentGain.gain.linearRampToValueAtTime(0.00001, now + 0.5);
-            }
-            if (currentOscillator) {
+                const oscToStop = currentOscillator;
+                const gainToStop = currentGain;
+
+                currentOscillator = null;
+                currentGain = null;
+
+                gainToStop.gain.cancelScheduledValues(now);
+
+                // Ramp gain to exactly 0 (not 0.00001) over 120ms to eliminate clicks
+                const currentValue = gainToStop.gain.value;
+                if (currentValue > 0) {
+                    gainToStop.gain.setValueAtTime(currentValue, now);
+                    gainToStop.gain.linearRampToValueAtTime(0, now + 0.12);
+                }
+
+                // Stop oscillator right when gain reaches 0
                 setTimeout(() => {
-                    try { currentOscillator.stop(); } catch(e) {}
-                    currentOscillator = null;
-                    currentGain = null;
-                }, 550);
+                    try { oscToStop.stop(); } catch(e) {}
+                }, 130);
+            } catch (e) {
+                console.error('Error stopping tone:', e);
+                currentOscillator = null;
+                currentGain = null;
             }
         }
 
