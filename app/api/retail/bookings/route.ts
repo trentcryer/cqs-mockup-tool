@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       .from('profiles')
       .select('quartet_name, booking_contact_email, booking_tiers, group_type')
       .eq('id', groupId)
-      .single()
+      .single() as any
 
     if (groupError || !group) {
       return Response.json(
