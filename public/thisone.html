@@ -791,7 +791,15 @@
 
         function toggleLabelMode() {
             labelMode = (labelMode === 'numbers') ? 'notes' : 'numbers';
-            document.getElementById('label-mode-text').textContent = labelMode.toUpperCase();
+
+            // Update button text to show current mode ↔ other mode
+            const currentText = labelMode === 'numbers' ? 'NUM' : 'NOTES';
+            const otherText = labelMode === 'numbers' ? 'NOTES' : 'NUM';
+            const btn = document.querySelector('[onclick="toggleLabelMode()"]');
+            if (btn) {
+                btn.innerHTML = `<span id="label-mode-text">${currentText}</span> ↔ ${otherText}`;
+            }
+
             createPitchPipe(); // re-render with new labels
         }
 
@@ -824,9 +832,18 @@
 
         function updateAllNumberLabels() {
             const container = document.getElementById('pitch-pipe');
-            const labels = container.querySelectorAll('.note-label');
-            labels.forEach((label, index) => {
-                label.textContent = getNoteNameForDegree(index + 1);
+            const buttons = container.querySelectorAll('.number-btn');
+
+            // Update all 15 chromatic buttons with their note names
+            buttons.forEach((btn, index) => {
+                const noteLabel = btn.querySelector('.note-label');
+                if (noteLabel) {
+                    // The chromatic array has the semitone for each button
+                    // Get the note name for that semitone in the current key
+                    const semi = Math.round(index % 15); // 0-14 for the chromatic scale
+                    const noteName = getChromaticNoteName(semi);
+                    noteLabel.textContent = noteName;
+                }
             });
         }
 
