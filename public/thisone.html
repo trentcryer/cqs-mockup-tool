@@ -638,8 +638,10 @@
                 btn.classList.toggle('active-key', active);
             });
 
+            // Recreate pitch pipe to display labels correctly with new key (keeps same mode)
+            createPitchPipe();
+
             // Update all visuals
-            updateAllNumberLabels();
             updateSlotsDisplay();
             if (activeSlotId !== null) selectSlot(activeSlotId);
         }
