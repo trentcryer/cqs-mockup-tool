@@ -391,12 +391,16 @@
         let masterGain = null;
         let currentOscillator = null;
         let currentGain = null;
+        let currentSampleNode = null;
 
         let currentTonicFreq = 261.63; // C4 default
         let currentTonicNote = "C4";
         let currentAdjustCents = 0;
         let activeSlotId = null; // Currently selected slot id
         let labelMode = 'numbers'; // 'numbers' or 'notes'
+
+        // Sample cache: noteName -> AudioBuffer
+        const sampleCache = {};
 
         // 5 Custom slots in sequence order for the tag
         let customSlots = [
@@ -437,27 +441,46 @@
             return baseFreq * Math.pow(2, cents / 1200);
         }
 
-        function getMidiNoteName(midiNote) {
-            const octave = Math.floor(midiNote / 12) - 1;
-            const noteNames = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
-            const noteName = noteNames[midiNote % 12];
-            return `${noteName}${octave}`;
+        // Convert semitones (0-11 + octave info) to note name with flats: C, Db, D, Eb, E, F, Gb, G, Ab, A, Bb, B
+        function getSampleNoteName(semitones) {
+            const noteNames = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+            const tonicBase = currentTonicNote.replace(/\d/, '');
+            let tonicIndex = noteNames.indexOf(tonicBase);
+            if (tonicIndex === -1) tonicIndex = 0;
+
+            const newIndex = (tonicIndex + Math.round(semitones)) % 12;
+            let octave = parseInt(currentTonicNote.slice(-1)) || 4;
+            if (newIndex < tonicIndex && Math.round(semitones) > 0) octave++;
+
+            return `${noteNames[newIndex]}${octave}`;
         }
 
-        async function playTone(frequency, durationMs = 800, sustain = false) {
-            initAudio();
-            stopCurrentTone();
+        // Load a piano sample from cache or fetch it
+        async function loadSample(noteName) {
+            if (sampleCache[noteName]) {
+                return sampleCache[noteName];
+            }
 
             try {
-                const midiNote = Math.round(12 * Math.log2(frequency / 440) + 69);
-                const noteName = getMidiNoteName(midiNote);
                 const url = `https://gleitz.github.io/midi.js-soundfonts/MuseScore_General/acoustic_grand_piano-mp3/${noteName}.mp3`;
-
                 const response = await fetch(url);
-                if (!response.ok) throw new Error(`Failed to load ${noteName}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const arrayBuffer = await response.arrayBuffer();
                 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                sampleCache[noteName] = audioBuffer;
+                return audioBuffer;
+            } catch (error) {
+                console.error(`Failed to load sample ${noteName}:`, error);
+                return null;
+            }
+        }
+
+        // Play a piano sample for clean notes (cents = 0)
+        async function playSample(noteName) {
+            try {
+                const audioBuffer = await loadSample(noteName);
+                if (!audioBuffer) throw new Error('No audio buffer');
 
                 const source = audioContext.createBufferSource();
                 const gain = audioContext.createGain();
@@ -467,32 +490,58 @@
                 gain.connect(masterGain);
 
                 const now = audioContext.currentTime;
-
-                if (sustain) {
-                    source.loop = true;
-                    source.loopStart = 0;
-                    source.loopEnd = audioBuffer.duration;
-                    gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(0.75, now + 0.05);
-                } else {
-                    gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(0.75, now + 0.05);
-                    gain.gain.linearRampToValueAtTime(0.0001, now + (durationMs / 1000) * 0.9);
-                    source.stop(now + (durationMs / 1000) + 0.35);
-                }
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.75, now + 0.05);
 
                 source.start(now);
-                currentOscillator = source;
-                currentGain = gain;
+                currentSampleNode = source;
 
-                return { source, gain };
+                return source;
             } catch (error) {
-                console.error('Error loading piano sample:', error);
-                playToneFallback(frequency, durationMs, sustain);
+                console.error('Error playing sample:', error);
+                return null;
             }
         }
 
-        function playToneFallback(frequency, durationMs = 800, sustain = false) {
+        // Stop the currently playing sample
+        function stopCurrentSample() {
+            if (currentSampleNode) {
+                try {
+                    currentSampleNode.stop();
+                } catch (e) {}
+                currentSampleNode = null;
+            }
+        }
+
+        // Stop both oscillator and sample
+        function stopAll() {
+            stopAll();
+            stopCurrentSample();
+        }
+
+        // Smart playTone: uses piano sample if cents=0, else uses oscillator
+        async function playTone(frequency, durationMs = 800, sustain = false, cents = 0) {
+            initAudio();
+            stopAll();
+
+            // If micro-adjusted (cents ≠ 0), use oscillator
+            if (cents !== 0) {
+                playToneOscillator(frequency, durationMs, sustain);
+                return;
+            }
+
+            // Otherwise, try to use piano sample
+            const semitones = Math.round(12 * Math.log2(frequency / currentTonicFreq));
+            const noteName = getSampleNoteName(semitones);
+
+            const sampleNode = await playSample(noteName);
+            if (!sampleNode) {
+                // Fallback to oscillator if sample fails
+                playToneOscillator(frequency, durationMs, sustain);
+            }
+        }
+
+        function playToneOscillator(frequency, durationMs = 800, sustain = false) {
             const osc = audioContext.createOscillator();
             osc.type = 'sine';
             osc.frequency.value = frequency;
@@ -518,11 +567,9 @@
             osc.start(now);
             currentOscillator = osc;
             currentGain = gain;
-
-            return { osc, gain };
         }
 
-        function stopCurrentTone() {
+        function stopAll() {
             if (!audioContext || !currentOscillator || !currentGain) return;
 
             try {
@@ -535,14 +582,12 @@
 
                 gainToStop.gain.cancelScheduledValues(now);
 
-                // Ramp gain to exactly 0 (not 0.00001) over 120ms to eliminate clicks
                 const currentValue = gainToStop.gain.value;
                 if (currentValue > 0) {
                     gainToStop.gain.setValueAtTime(currentValue, now);
                     gainToStop.gain.linearRampToValueAtTime(0, now + 0.12);
                 }
 
-                // Stop oscillator right when gain reaches 0
                 setTimeout(() => {
                     try { oscToStop.stop(); } catch(e) {}
                 }, 130);
@@ -551,6 +596,15 @@
                 currentOscillator = null;
                 currentGain = null;
             }
+        }
+
+        // Preload the 15 chromatic notes for the default key (C4) on init
+        async function preloadChromatic() {
+            const semitones = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+            semitones.forEach(semi => {
+                const noteName = getSampleNoteName(semi);
+                loadSample(noteName).catch(() => {});
+            });
         }
 
         // ==================== UI RENDERING ====================
@@ -574,7 +628,7 @@
 
         function setKey(noteName) {
             if (!noteFrequencies[noteName]) return;
-            stopCurrentTone();
+            stopAll();
             currentTonicFreq = noteFrequencies[noteName];
             currentTonicNote = noteName;
             document.getElementById('current-key').textContent = noteName;
@@ -684,7 +738,7 @@
                 // Play function — called on pointerdown
                 const playThis = () => {
                     const freq = getFrequencyForSemitones(item.semi);
-                    playTone(freq, 99999, true); // sustain indefinitely
+                    playTone(freq, 99999, true, 0); // sustain indefinitely, cents=0 for clean piano
                     btn.classList.add('active');
 
                     // If a slot is active, immediately assign this note to it
@@ -721,12 +775,12 @@
 
                 btn.addEventListener('pointerup', (e) => {
                     e.preventDefault();
-                    stopCurrentTone();
+                    stopAll();
                     btn.classList.remove('active');
                 });
 
                 btn.addEventListener('pointercancel', (e) => {
-                    stopCurrentTone();
+                    stopAll();
                     btn.classList.remove('active');
                 });
 
@@ -900,16 +954,16 @@
                     // Select this slot
                     selectSlot(slot.id);
 
-                    // Play and sustain
+                    // Play and sustain (pass slot's cents so it switches to osc if micro-adjusted)
                     const freq = getSlotFrequency(slot);
-                    playTone(freq, 99999, true);
+                    playTone(freq, 99999, true, slot.cents || 0);
                     card.classList.add('playing-sustain');
                     holding = true;
                 });
 
                 card.addEventListener('pointerup', (e) => {
                     if (holding) {
-                        stopCurrentTone();
+                        stopAll();
                         card.classList.remove('playing-sustain');
                         holding = false;
                     }
@@ -917,7 +971,7 @@
 
                 card.addEventListener('pointercancel', () => {
                     if (holding) {
-                        stopCurrentTone();
+                        stopAll();
                         card.classList.remove('playing-sustain');
                         holding = false;
                     }
@@ -968,6 +1022,10 @@
             createPitchPipe();
             updateSlotsDisplay();
 
+            // Preload piano samples for the 15 chromatic notes in the default key
+            initAudio();
+            preloadChromatic();
+
             // Initial labels
             setTimeout(() => {
                 updateAllNumberLabels();
@@ -975,7 +1033,7 @@
 
             // Keyboard support (number keys 1-8 play that scale degree while held — simplified)
             document.addEventListener('keydown', (e) => {
-                if (e.key.toLowerCase() === 's') stopCurrentTone();
+                if (e.key.toLowerCase() === 's') stopAll();
             });
 
             // Mobile audio unlock
@@ -1023,7 +1081,7 @@
             setKey: (note) => setKey(note),
             playDegree: (deg) => {
                 const f = getFrequencyForDegree(deg);
-                playTone(f, 700);
+                playTone(f, 700, false, 0);
             },
             getSlots: () => customSlots
         };
