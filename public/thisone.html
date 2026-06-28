@@ -456,23 +456,19 @@
         }
 
         function stopCurrentTone() {
-            if (!currentOscillator || !currentGain) return;
-
-            const now = audioContext.currentTime;
-            const oscToStop = currentOscillator;
-            const gainToStop = currentGain;
-
-            currentOscillator = null;
-            currentGain = null;
-
-            gainToStop.gain.cancelScheduledValues(now);
-            gainToStop.gain.setValueAtTime(gainToStop.gain.value, now);
-            // Quick, smooth release (150ms) to prevent clicks while stopping cleanly
-            gainToStop.gain.linearRampToValueAtTime(0, now + 0.15);
-
-            setTimeout(() => {
-                try { oscToStop.stop(); } catch(e) {}
-            }, 160);
+            if (currentGain) {
+                const now = audioContext.currentTime;
+                currentGain.gain.cancelScheduledValues(now);
+                // Much longer, smoother release to completely kill click/static/drum sound
+                currentGain.gain.linearRampToValueAtTime(0.00001, now + 0.5);
+            }
+            if (currentOscillator) {
+                setTimeout(() => {
+                    try { currentOscillator.stop(); } catch(e) {}
+                    currentOscillator = null;
+                    currentGain = null;
+                }, 550);
+            }
         }
 
         // ==================== UI RENDERING ====================
