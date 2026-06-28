@@ -35,20 +35,43 @@
             height: 320px;
             position: relative;
             margin: 0 auto;
+            max-width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .pitch-pipe-container {
+                width: 280px;
+                height: 280px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .pitch-pipe-container {
+                width: 240px;
+                height: 240px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .pitch-pipe-container {
+                width: 200px;
+                height: 200px;
+            }
         }
 
         .pitch-pipe-outer {
-            width: 320px;
-            height: 320px;
+            width: 100%;
+            height: 100%;
             border-radius: 9999px;
             background: linear-gradient(145deg, #27251f, #1c1917);
-            box-shadow: 
+            box-shadow:
                 0 25px 50px -12px rgb(0 0 0 / 0.4),
                 inset 0 2px 4px 0 rgb(245 158 11 / 0.1),
                 inset 0 -2px 4px 0 rgb(0 0 0 / 0.3);
             border: 12px solid #3f3a33;
             position: relative;
             overflow: hidden;
+            box-sizing: border-box;
         }
 
         .pitch-pipe-inner {
@@ -56,8 +79,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
+            width: 62.5%;
+            height: 62.5%;
             border-radius: 9999px;
             background: #1c1917;
             border: 8px solid #57534e;
@@ -527,6 +550,10 @@
             const container = document.getElementById('pitch-pipe');
             container.innerHTML = '';
 
+            // Get container size for responsive scaling
+            const containerSize = container.offsetWidth || 320;
+            const scaleFactor = containerSize / 320;
+
             // Outer ring
             const outer = document.createElement('div');
             outer.className = 'pitch-pipe-outer';
@@ -550,9 +577,9 @@
             label.textContent = labelMode === 'numbers' ? 'NUMBERS + .5' : 'NOTES';
             container.appendChild(label);
 
-            const centerX = 160;
-            const centerY = 160;
-            const radius = 118;
+            const centerX = containerSize / 2;
+            const centerY = containerSize / 2;
+            const radius = 118 * scaleFactor;
 
             // Chromatic with .5 style for half steps (big = main 1-8, small = .5)
             // Exactly 15 items: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8
@@ -583,10 +610,16 @@
 
                 const btn = document.createElement('button');
                 btn.className = `number-btn flex flex-col items-center justify-center ${item.main ? 'main-degree' : 'half-step'}`;
-                btn.style.left = `${x - (item.main ? 26 : 19)}px`;
-                btn.style.top = `${y - (item.main ? 26 : 19)}px`;
-                btn.style.width = item.main ? '52px' : '38px';
-                btn.style.height = item.main ? '52px' : '38px';
+
+                const mainSize = 52 * scaleFactor;
+                const halfSize = 38 * scaleFactor;
+                const btnSize = item.main ? mainSize : halfSize;
+                const offset = btnSize / 2;
+
+                btn.style.left = `${x - offset}px`;
+                btn.style.top = `${y - offset}px`;
+                btn.style.width = `${btnSize}px`;
+                btn.style.height = `${btnSize}px`;
 
                 // Choose label based on current mode
                 const displayLabel = (labelMode === 'numbers') ? item.labelNum : item.labelNote;
