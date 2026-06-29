@@ -1376,9 +1376,8 @@
                     container.innerHTML = '<div class="osmd-placeholder">Select a song and your part above to view sheet music</div>';
                 } else {
                     container.innerHTML = `<div class="osmd-placeholder">
-                        Could not load sheet music.<br><br>
-                        Make sure you're running a local server in the Desktop folder:<br>
-                        <code style="background:#1c1917;padding:4px 8px;border-radius:6px;color:#f59e0b">python3 -m http.server 8000</code>
+                        Sheet music not found for this song/part.<br><br>
+                        Try selecting a different song or part.
                     </div>`;
                 }
                 return;
