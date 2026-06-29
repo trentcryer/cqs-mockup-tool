@@ -1488,14 +1488,21 @@
 
         function showInstallModal() {
             const overlay = document.getElementById('install-modal-overlay');
-            overlay.classList.remove('hidden');
+            overlay.style.display = 'flex';
         }
 
         function dismissInstallModal() {
             const overlay = document.getElementById('install-modal-overlay');
-            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
             localStorage.setItem('installDismissed', 'true');
         }
+
+        // Dismiss modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                dismissInstallModal();
+            }
+        });
 
         async function installApp() {
             console.log('Install button clicked', { deferredPrompt, isStandalone: window.matchMedia('(display-mode: standalone)').matches });
