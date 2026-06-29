@@ -1400,15 +1400,19 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            showInstallModal();
         });
 
-        function showInstallModal() {
-            // Don't show if already installed
+        function initInstallModal() {
+            // Don't show if already installed as standalone app
             if (window.matchMedia('(display-mode: standalone)').matches) return;
-            // Don't show if dismissed in this session
-            if (sessionStorage.getItem('installDismissed')) return;
 
+            // Show modal on load (unless dismissed in localStorage)
+            if (!localStorage.getItem('installDismissed')) {
+                showInstallModal();
+            }
+        }
+
+        function showInstallModal() {
             const overlay = document.getElementById('install-modal-overlay');
             overlay.classList.remove('hidden');
         }
@@ -1416,11 +1420,15 @@
         function dismissInstallModal() {
             const overlay = document.getElementById('install-modal-overlay');
             overlay.classList.add('hidden');
-            sessionStorage.setItem('installDismissed', 'true');
+            localStorage.setItem('installDismissed', 'true');
         }
 
         async function installApp() {
-            if (!deferredPrompt) return;
+            if (!deferredPrompt) {
+                // Fallback if beforeinstallprompt not available (desktop, etc)
+                alert('To install this app:\n\n1. Click the menu button (⋮)\n2. Select "Install app" or "Add to Home Screen"\n3. Confirm');
+                return;
+            }
             deferredPrompt.prompt();
             const choiceResult = await deferredPrompt.userChoice;
             if (choiceResult.outcome === 'accepted') {
@@ -1588,6 +1596,7 @@
             createPitchPipe();
             updateSlotsDisplay();
             initFloatingSlotsPanel();
+            initInstallModal();
 
             // Preload piano samples for the 15 chromatic notes in the default key
             initAudio();
