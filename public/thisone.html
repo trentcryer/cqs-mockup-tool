@@ -6,6 +6,7 @@
     <title>CQS Micro Pitch Pipe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.7.6/build/opensheetmusicdisplay.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
         
@@ -250,56 +251,75 @@
             box-shadow: 0 0 0 2px #34d399, 0 0 12px 2px rgba(52,211,153,0.4);
         }
 
-        .landscape-lock-btn {
-            padding: 4px 8px;
-            font-size: 11px;
+        .tab-btn {
+            padding: 6px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            border-radius: 12px;
+            border: 1px solid #3f3f46;
             background: #27251f;
-            border: 1px solid #57534e;
             color: #a1a1aa;
-            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
         }
-
-        .landscape-lock-btn:hover {
-            border-color: #f59e0b;
-            color: #f59e0b;
-        }
-
-        .landscape-lock-btn.active {
+        .tab-btn:hover { background: #3f3a33; color: #e4e4e7; }
+        .tab-btn.active-tab {
             background: #f59e0b;
             color: #1c1917;
             border-color: #fef08c;
         }
 
-        .landscape-mode {
-            display: flex !important;
-            flex-direction: column !important;
-            height: 100vh !important;
-            overflow: hidden !important;
+        #osmd-container {
+            background: white;
+            width: 100%;
+            min-height: 300px;
+            border-radius: 16px;
+            overflow-y: auto;
+            padding: 8px;
+            box-sizing: border-box;
         }
 
-        .landscape-mode > div:first-child {
-            flex-shrink: 0;
+        .osmd-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            color: #71717a;
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 24px;
         }
 
-        .landscape-mode .flex.items-start.gap-3 {
-            flex-direction: row !important;
-            flex: 1 !important;
-            overflow: hidden !important;
+        .osmd-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 200px;
+            color: #f59e0b;
+            font-size: 0.85rem;
         }
 
-        .landscape-mode .side-col {
-            max-height: 100% !important;
-            overflow-y: auto !important;
+        .part-btn {
+            flex: 1;
+            padding: 5px 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background: #27251f;
+            cursor: pointer;
+            transition: all 0.15s;
+            opacity: 0.6;
         }
-
-        .landscape-mode .adjust-panel {
-            display: none !important;
-        }
-
-        .landscape-mode .pro-tips {
-            display: none !important;
+        .part-btn:hover { opacity: 0.9; }
+        .part-btn.part-active {
+            opacity: 1;
+            background: #1c1917;
+            border-color: currentColor;
+            box-shadow: 0 0 8px currentColor;
         }
     </style>
 </head>
@@ -317,16 +337,40 @@
                     <p class="text-zinc-500 text-[11px]">Tap 1–8 to play &nbsp;&bull;&nbsp; Hold to sustain &nbsp;&bull;&nbsp; On phone: tap once to enable audio</p>
                 </div>
             </div>
-            <div class="flex items-center gap-x-2">
-                <button onclick="toggleLandscapeMode()" class="landscape-lock-btn" id="landscape-btn" title="Lock to landscape">
-                    <i class="fa-solid fa-mobile"></i> Landscape
-                </button>
-                <div class="text-right text-[10px] text-zinc-500 leading-tight hidden sm:block">
-                    Custom Quartet Stuff<br>
-                    <span class="text-amber-400">For ringing barbershop chords</span>
+            <div class="text-right text-[10px] text-zinc-500 leading-tight hidden sm:block">
+                Custom Quartet Stuff<br>
+                <span class="text-amber-400">For ringing barbershop chords</span>
+            </div>
+        </div>
+
+        <!-- Song + Part Selector -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl px-3 py-2 mb-3">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="text-[9px] font-bold tracking-widest text-zinc-400 flex-shrink-0">SONG</div>
+                <select id="song-selector" onchange="onSongSelect()"
+                        class="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-sm text-zinc-200 focus:border-amber-500 outline-none cursor-pointer">
+                    <option value="">— Select a song —</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="text-[9px] font-bold tracking-widest text-zinc-400 flex-shrink-0">PART</div>
+                <div class="flex gap-1.5 flex-1">
+                    <button id="part-tenor"    onclick="selectPart('tenor')"    class="part-btn" style="color:#1E90FF">Tenor</button>
+                    <button id="part-lead"     onclick="selectPart('lead')"     class="part-btn" style="color:#32CD32">Lead</button>
+                    <button id="part-baritone" onclick="selectPart('baritone')" class="part-btn" style="color:#FF8C00">Baritone</button>
+                    <button id="part-bass"     onclick="selectPart('bass')"     class="part-btn" style="color:#9932CC">Bass</button>
                 </div>
             </div>
         </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-3">
+            <button id="tab-pitch-btn" class="tab-btn active-tab" onclick="switchTab('pitch')">PITCH PIPE</button>
+            <button id="tab-sheet-btn" class="tab-btn" onclick="switchTab('sheet')">SHEET MUSIC</button>
+        </div>
+
+        <!-- PITCH PIPE TAB -->
+        <div id="tab-pitch-content">
 
         <!-- THREE-COLUMN ROW: Slots | Pitch Pipe | Key -->
         <div class="flex items-start gap-3 mb-3">
@@ -373,7 +417,7 @@
         </div><!-- end 3-col row -->
 
         <!-- ADJUST & SAVE (directly below pitch pipe row) -->
-        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 mb-4 adjust-panel" id="adjust-panel">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 mb-4" id="adjust-panel">
             <div class="flex items-center justify-between mb-3">
                 <div>
                     <div class="text-[10px] font-semibold tracking-widest text-zinc-400">ADJUST &amp; SAVE TO SLOT</div>
@@ -425,10 +469,18 @@
                     </div>
                 </div>
             </div>
+        </div><!-- /adjust-panel -->
+        </div><!-- /tab-pitch-content -->
+
+        <!-- SHEET MUSIC TAB -->
+        <div id="tab-sheet-content" style="display:none" class="mb-4">
+            <div id="osmd-container">
+                <div class="osmd-placeholder">Select a song and your part above to view sheet music</div>
+            </div>
         </div>
 
         <!-- Pro Tips -->
-        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 text-xs text-zinc-400 pro-tips">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 text-xs text-zinc-400">
             <div class="font-semibold text-amber-300 mb-1">Pro Tips for Barbershop Use</div>
             <ul class="list-disc pl-4 space-y-0.5">
                 <li>Scale degree <strong>7</strong> lowered 10–30 cents gives the ringing barbershop 7th chord.</li>
@@ -576,12 +628,10 @@
             stopCurrentSample();
         }
 
-        // Smart playTone: uses piano sample for higher notes (5-8), oscillator for lower notes (1-4) and adjustments
+        // Smart playTone: uses piano sample if cents=0, else uses oscillator
         async function playTone(frequency, durationMs = 800, sustain = false, cents = 0) {
             initAudio();
             stopAll();
-
-            const semitones = Math.round(12 * Math.log2(frequency / currentTonicFreq));
 
             // If micro-adjusted (cents ≠ 0), use oscillator
             if (cents !== 0) {
@@ -589,13 +639,8 @@
                 return;
             }
 
-            // Use oscillator for lower notes (notes 1-4, semitones 0-6) for cleaner sound
-            if (semitones < 7) {
-                playToneOscillator(frequency, durationMs, sustain);
-                return;
-            }
-
-            // Use piano samples for higher notes (notes 5-8, semitones 7-14)
+            // Otherwise, try to use piano sample
+            const semitones = Math.round(12 * Math.log2(frequency / currentTonicFreq));
             const noteName = getSampleNoteName(semitones);
 
             const sampleNode = await playSample(noteName);
@@ -1098,7 +1143,7 @@
             createPitchPipe();
             updateSlotsDisplay();
 
-            // Initialize audio context and preload samples IMMEDIATELY (don't wait for user interaction)
+            // Preload piano samples for the 15 chromatic notes in the default key
             initAudio();
             preloadChromatic();
 
@@ -1112,23 +1157,14 @@
                 if (e.key.toLowerCase() === 's') stopAll();
             });
 
-            // Ensure audio is ready immediately on any interaction (already preloaded on init, this just resumes if suspended)
-            const quickUnlock = () => {
-                if (audioContext && audioContext.state === 'suspended') {
-                    audioContext.resume().catch(() => {});
-                }
-                document.removeEventListener('touchstart', quickUnlock);
-                document.removeEventListener('click', quickUnlock);
+            // Mobile audio unlock
+            const unlock = () => {
+                initAudio();
+                document.removeEventListener('touchstart', unlock);
+                document.removeEventListener('click', unlock);
             };
-            document.addEventListener('touchstart', quickUnlock, { once: true });
-            document.addEventListener('click', quickUnlock, { once: true });
-
-            // Recalculate pitch pipe on window resize (for landscape mode)
-            window.addEventListener('resize', () => {
-                if (landscapeModeActive) {
-                    createPitchPipe();
-                }
-            });
+            document.addEventListener('touchstart', unlock, { once: true });
+            document.addEventListener('click', unlock, { once: true });
 
             // Auto open adjust for degree 7 as example (common dirty note)
             setTimeout(() => {
@@ -1136,6 +1172,7 @@
             }, 800);
 
             console.log('%c[CQS Micro Pitch Pipe] Ready with dirty note slots!', 'color:#854d0e');
+            loadSongs();
 
             // Make it feel more like a native app (prevent browser behaviors)
             // Prevent long-press context menu / copy
@@ -1159,46 +1196,291 @@
             }, { passive: false });
         }
 
-        let landscapeModeActive = false;
+        window.onload = initializeApp;
 
-        async function toggleLandscapeMode() {
-            landscapeModeActive = !landscapeModeActive;
-            const btn = document.getElementById('landscape-btn');
-            const wrapper = document.querySelector('.max-w-3xl');
+        // ==================== SONG SELECTOR ====================
+        let songs = [];
+        let currentSongXml = null;
+        let osmd = null;
+        let selectedPart = null;
 
-            if (landscapeModeActive) {
-                btn.classList.add('active');
-                wrapper.classList.add('landscape-mode');
+        const DEGREE_TO_SEMI = {
+            '1': 0, '1.5': 1, '2': 2, '2.5': 3, '3': 4,
+            '4': 5, '4.5': 6, '5': 7, '5.5': 8,
+            '6': 9, '6.5': 10, '7': 11, '8': 12
+        };
 
-                // Try to lock orientation
-                try {
-                    if (screen.orientation && screen.orientation.lock) {
-                        await screen.orientation.lock('landscape');
-                    }
-                } catch (e) {
-                    console.log('Orientation lock not supported on this device');
-                }
-            } else {
-                btn.classList.remove('active');
-                wrapper.classList.remove('landscape-mode');
+        const PART_COLORS_MAP = {
+            'tenor': '#1E90FF', 'lead': '#32CD32',
+            'baritone': '#FF8C00', 'bass': '#9932CC'
+        };
 
-                // Unlock orientation
-                try {
-                    if (screen.orientation && screen.orientation.unlock) {
-                        screen.orientation.unlock();
-                    }
-                } catch (e) {
-                    console.log('Orientation unlock not supported');
-                }
-            }
-
-            // Recalculate pitch pipe for new container size
-            setTimeout(() => {
-                createPitchPipe();
-            }, 100);
+        function cleanTitle(raw) {
+            return raw
+                .replace(/^\d+-/, '')
+                .replace(/-/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
         }
 
-        window.onload = initializeApp;
+        async function loadSongs() {
+            try {
+                const res = await fetch('https://pub-b9ad8544e5224fd1abbd12976d8f4d6f.r2.dev/songs.json');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                songs = await res.json();
+                const sel = document.getElementById('song-selector');
+                songs.forEach((song, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = cleanTitle(song.title);
+                    sel.appendChild(opt);
+                });
+            } catch(e) {
+                console.warn('Could not load songs.json:', e);
+            }
+        }
+
+        function selectPart(part) {
+            selectedPart = part;
+            ['tenor', 'lead', 'baritone', 'bass'].forEach(p => {
+                document.getElementById(`part-${p}`)?.classList.toggle('part-active', p === part);
+            });
+
+            const idx = parseInt(document.getElementById('song-selector').value);
+            const song = songs[idx];
+            if (song) {
+                // Re-fill slots using this part's top numbers if available
+                const partData = song.parts?.[part.charAt(0).toUpperCase() + part.slice(1)];
+                const topNums = partData
+                    ? Object.keys(partData.numbers).slice(0, 5)
+                    : song.top_numbers?.slice(0, 5) || [];
+                fillSlots(topNums);
+                loadPartXml(song);
+            }
+
+            // Re-render if sheet tab is open
+            if (document.getElementById('tab-sheet-content').style.display !== 'none') {
+                renderSheet();
+            }
+        }
+
+        function fillSlots(nums) {
+            nums.slice(0, 5).forEach((deg, i) => {
+                const semi = DEGREE_TO_SEMI[deg];
+                if (semi === undefined) return;
+                customSlots[i].baseSemi = semi;
+                customSlots[i].labelNum = deg;
+                customSlots[i].labelNote = getChromaticNoteName(semi);
+                customSlots[i].cents = 0;
+            });
+            updateSlotsDisplay();
+            selectSlot(customSlots[0].id);
+        }
+
+        async function loadPartXml(song) {
+            if (!selectedPart) { currentSongXml = null; return; }
+            const xmlPath = `https://pub-b9ad8544e5224fd1abbd12976d8f4d6f.r2.dev/musicxml/${song.id}-${selectedPart}.xml`;
+            try {
+                const res = await fetch(xmlPath);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                currentSongXml = await res.text();
+            } catch(e) {
+                currentSongXml = null;
+                console.warn('Could not load XML:', xmlPath, e);
+            }
+        }
+
+        async function onSongSelect() {
+            const sel = document.getElementById('song-selector');
+            const idx = parseInt(sel.value);
+            if (isNaN(idx)) return;
+            const song = songs[idx];
+            if (!song) return;
+
+            if (selectedPart) {
+                // Fill from selected part's top numbers
+                const partKey = selectedPart.charAt(0).toUpperCase() + selectedPart.slice(1);
+                const partData = song.parts?.[partKey];
+                const topNums = partData
+                    ? Object.keys(partData.numbers).slice(0, 5)
+                    : song.top_numbers?.slice(0, 5) || [];
+                fillSlots(topNums);
+                await loadPartXml(song);
+            } else {
+                // No part selected — fill from overall top numbers
+                fillSlots(song.top_numbers || []);
+                currentSongXml = null;
+            }
+        }
+
+        // ==================== TABS ====================
+        function switchTab(tab) {
+            const pitchContent = document.getElementById('tab-pitch-content');
+            const sheetContent = document.getElementById('tab-sheet-content');
+            const pitchBtn = document.getElementById('tab-pitch-btn');
+            const sheetBtn = document.getElementById('tab-sheet-btn');
+
+            if (tab === 'pitch') {
+                pitchContent.style.display = '';
+                sheetContent.style.display = 'none';
+                pitchBtn.classList.add('active-tab');
+                sheetBtn.classList.remove('active-tab');
+            } else {
+                pitchContent.style.display = 'none';
+                sheetContent.style.display = '';
+                pitchBtn.classList.remove('active-tab');
+                sheetBtn.classList.add('active-tab');
+                renderSheet();
+            }
+        }
+
+        // ==================== OSMD ====================
+        async function renderSheet() {
+            const container = document.getElementById('osmd-container');
+
+            if (!currentSongXml) {
+                const hasSong = !!document.getElementById('song-selector').value;
+                const hasPart = !!selectedPart;
+                if (!hasSong || !hasPart) {
+                    container.innerHTML = '<div class="osmd-placeholder">Select a song and your part above to view sheet music</div>';
+                } else {
+                    container.innerHTML = `<div class="osmd-placeholder">
+                        Could not load sheet music.<br><br>
+                        Make sure you're running a local server in the Desktop folder:<br>
+                        <code style="background:#1c1917;padding:4px 8px;border-radius:6px;color:#f59e0b">python3 -m http.server 8000</code>
+                    </div>`;
+                }
+                return;
+            }
+
+            container.innerHTML = '<div class="osmd-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading sheet music…</div>';
+
+            try {
+                if (!osmd) {
+                    osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay('osmd-container', {
+                        autoResize: true,
+                        backend: 'svg',
+                        drawTitle: true,
+                        coloringMode: 0
+                    });
+                } else {
+                    // Clear for re-render
+                    osmd.clear && osmd.clear();
+                }
+
+                await osmd.load(currentSongXml);
+                await osmd.render();
+                fixLyricsDisplay();
+                highlightSlotNumbers();
+            } catch(e) {
+                console.error('OSMD render error:', e);
+                container.innerHTML = `<div class="osmd-placeholder">Error rendering sheet music: ${e.message}</div>`;
+            }
+        }
+
+        // ==================== FIX LYRIC OVERLAP & BOLD NUMBERS ====================
+        function fixLyricsDisplay() {
+            // Color for numbers = selected part's color (OSMD ignores <lyric color> attributes)
+            const partColor = PART_COLORS_MAP[selectedPart] || '#f59e0b';
+
+            const container = document.getElementById('osmd-container');
+
+            container.querySelectorAll('svg').forEach(svg => {
+                const wordEls = [];
+                const numEls  = [];
+
+                svg.querySelectorAll('text').forEach(el => {
+                    const txt = el.textContent.trim();
+                    if (!txt) return;
+                    // Scale degree numbers: only digits and dots ("5", "1.5", "6.5")
+                    if (/^[\d.]+$/.test(txt)) {
+                        numEls.push(el);
+                    } else if (/[a-zA-Z]/.test(txt)) {
+                        wordEls.push(el);
+                    }
+                });
+
+                // Apply color, bold, and slightly larger size to every number
+                numEls.forEach(el => {
+                    el.setAttribute('fill', partColor);
+                    el.setAttribute('font-weight', 'bold');
+                    el.style.fontWeight = 'bold';
+                    const sz = parseFloat(el.getAttribute('font-size') || '8');
+                    if (sz) el.setAttribute('font-size', (sz * 1.25).toFixed(2));
+                    // Reset any prior transform so getBoundingClientRect is accurate
+                    el.style.transform = '';
+                });
+
+                if (!wordEls.length || !numEls.length) return;
+
+                // Use screen-space rects — reliable across all OSMD SVG transform patterns
+                const wordRects = wordEls.map(el => el.getBoundingClientRect());
+
+                numEls.forEach(numEl => {
+                    const orig = numEl.getBoundingClientRect();
+                    if (!orig.width) return;
+
+                    let totalPush = 0; // accumulated px to push downward
+
+                    for (let iter = 0; iter < 10; iter++) {
+                        let pushed = false;
+
+                        for (const wr of wordRects) {
+                            // Horizontal overlap?
+                            if (orig.right <= wr.left || orig.left >= wr.right) continue;
+
+                            // Vertical overlap at current (pushed) position?
+                            const curTop    = orig.top    + totalPush;
+                            const curBottom = orig.bottom + totalPush;
+                            if (curBottom <= wr.top || curTop >= wr.bottom) continue;
+
+                            // Push number below this word + 3px gap
+                            const needed = wr.bottom - curTop + 3;
+                            if (needed > 0) {
+                                totalPush += needed;
+                                pushed = true;
+                            }
+                        }
+
+                        if (!pushed) break; // stable — no more conflicts
+                    }
+
+                    if (totalPush > 0) {
+                        numEl.style.transform = `translateY(${totalPush}px)`;
+                    }
+                });
+            });
+        }
+
+        // ==================== HIGHLIGHT SLOT NUMBERS IN SVG ====================
+        function highlightSlotNumbers() {
+            const slotNums = new Set(
+                customSlots.map(s => s.labelNum ? String(s.labelNum) : null).filter(Boolean)
+            );
+            if (!slotNums.size) return;
+
+            const container = document.getElementById('osmd-container');
+            // Remove previous highlights
+            container.querySelectorAll('.slot-highlight').forEach(el => el.remove());
+
+            container.querySelectorAll('svg text').forEach(textEl => {
+                const content = (textEl.textContent || '').trim();
+                if (!slotNums.has(content)) return;
+                try {
+                    const bbox = textEl.getBBox();
+                    if (!bbox.width) return;
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', bbox.x - 2);
+                    rect.setAttribute('y', bbox.y - 1);
+                    rect.setAttribute('width', bbox.width + 4);
+                    rect.setAttribute('height', bbox.height + 2);
+                    rect.setAttribute('fill', 'rgba(245,158,11,0.25)');
+                    rect.setAttribute('rx', '2');
+                    rect.setAttribute('pointer-events', 'none');
+                    rect.classList.add('slot-highlight');
+                    textEl.parentNode.insertBefore(rect, textEl);
+                } catch(e) {}
+            });
+        }
 
         // Expose for advanced use
         window.CQSMicroPipe = {
