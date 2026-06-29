@@ -1424,16 +1424,25 @@
         }
 
         async function installApp() {
+            console.log('Install button clicked', { deferredPrompt, isStandalone: window.matchMedia('(display-mode: standalone)').matches });
+
             if (!deferredPrompt) {
                 // Fallback if beforeinstallprompt not available (desktop, etc)
-                alert('To install this app:\n\n1. Click the menu button (⋮)\n2. Select "Install app" or "Add to Home Screen"\n3. Confirm');
+                alert('To install this app:\n\n📱 Mobile: Tap menu (⋮) → "Install app" or "Add to Home Screen"\n\n🍎 iPhone: Tap Share → "Add to Home Screen"\n\n💻 Desktop: Use Chrome menu → "Install app"');
                 return;
             }
-            deferredPrompt.prompt();
-            const choiceResult = await deferredPrompt.userChoice;
-            if (choiceResult.outcome === 'accepted') {
-                deferredPrompt = null;
-                dismissInstallModal();
+
+            try {
+                deferredPrompt.prompt();
+                const choiceResult = await deferredPrompt.userChoice;
+                console.log('Install choice:', choiceResult);
+                if (choiceResult.outcome === 'accepted') {
+                    deferredPrompt = null;
+                    dismissInstallModal();
+                }
+            } catch (e) {
+                console.error('Install error:', e);
+                alert('Install not available on this browser. Try using Chrome or Edge.');
             }
         }
 
