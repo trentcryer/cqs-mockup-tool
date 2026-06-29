@@ -982,10 +982,17 @@
             const semitones = Math.round(12 * Math.log2(frequency / currentTonicFreq));
             const noteName = getSampleNoteName(semitones);
 
-            const sampleNode = await playSample(noteName);
-            if (!sampleNode) {
-                // Fallback to oscillator if sample fails
+            // If sample is already cached, use it; otherwise fallback to oscillator immediately
+            if (sampleCache[noteName]) {
+                const sampleNode = await playSample(noteName);
+                if (!sampleNode) {
+                    playToneOscillator(frequency, durationMs, sustain);
+                }
+            } else {
+                // Sample not cached yet - use oscillator immediately for instant response
                 playToneOscillator(frequency, durationMs, sustain);
+                // Preload sample in background for next time
+                loadSample(noteName).catch(() => {});
             }
         }
 
@@ -1030,10 +1037,11 @@
         // Preload the 15 chromatic notes for the default key (C4) on init
         async function preloadChromatic() {
             const semitones = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-            semitones.forEach(semi => {
+            const promises = semitones.map(semi => {
                 const noteName = getSampleNoteName(semi);
-                loadSample(noteName).catch(() => {});
+                return loadSample(noteName).catch(() => console.warn(`Failed to preload ${noteName}`));
             });
+            await Promise.all(promises);
         }
 
         // ==================== UI RENDERING ====================
@@ -1675,7 +1683,9 @@
 
             // Preload piano samples for the 15 chromatic notes in the default key
             initAudio();
-            preloadChromatic();
+            preloadChromatic().then(() => {
+                console.log('Piano samples preloaded - ready for instant playback');
+            });
 
             // Initial labels
             setTimeout(() => {
