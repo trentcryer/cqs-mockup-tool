@@ -767,7 +767,7 @@
         </div>
 
         <!-- Install Modal -->
-        <div id="install-modal-overlay" class="install-modal-overlay">
+        <div id="install-modal-overlay" class="install-modal-overlay" style="display:none">
             <div class="install-modal">
                 <div class="install-modal-icon">♪</div>
                 <h2>CQS Tag Teacher</h2>
@@ -1470,20 +1470,24 @@
         });
 
         function initInstallModal() {
+            const overlay = document.getElementById('install-modal-overlay');
+            if (!overlay) return;
+
             // Don't show if already installed as standalone app
             const isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
                                 navigator.standalone === true;
 
-            if (isInstalled) {
-                console.log('App already installed - hiding modal');
-                document.getElementById('install-modal-overlay').style.display = 'none';
+            // Don't show if already dismissed
+            const isDismissed = localStorage.getItem('installDismissed') === 'true';
+
+            if (isInstalled || isDismissed) {
+                overlay.style.display = 'none';
                 return;
             }
 
-            // Show modal on load (unless dismissed in localStorage)
-            if (!localStorage.getItem('installDismissed')) {
-                showInstallModal();
-            }
+            // Show modal for first-time users
+            overlay.style.display = 'flex';
+        }
         }
 
         function showInstallModal() {
