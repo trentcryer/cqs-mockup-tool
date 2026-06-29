@@ -67,39 +67,64 @@
             }
         }
 
-        @media (orientation: landscape) and (max-height: 600px) {
+        @media (orientation: landscape) {
             .pitch-pipe-container {
-                width: 240px;
-                height: 240px;
+                width: 360px;
+                height: 360px;
+                margin: 0;
             }
 
             .number-btn {
-                width: 40px;
-                height: 40px;
+                width: 56px;
+                height: 56px;
+                font-size: 1.6rem;
+                border: 3px solid #57534e;
+            }
+
+            .number-btn .note-label {
+                font-size: 0.7rem;
+                bottom: -20px;
+            }
+
+            .number-btn.half-step .note-label {
+                font-size: 0.6rem;
+                bottom: -16px;
+            }
+        }
+
+        @media (orientation: landscape) and (max-height: 600px) {
+            .pitch-pipe-container {
+                width: 320px;
+                height: 320px;
+            }
+
+            .number-btn {
+                width: 48px;
+                height: 48px;
+                font-size: 1.3rem;
+                border: 2px solid #57534e;
+            }
+
+            .number-btn .note-label {
+                font-size: 0.6rem;
+            }
+        }
+
+        @media (orientation: landscape) and (max-height: 450px) {
+            .pitch-pipe-container {
+                width: 280px;
+                height: 280px;
+            }
+
+            .number-btn {
+                width: 42px;
+                height: 42px;
                 font-size: 1.1rem;
                 border: 2px solid #57534e;
             }
 
             .number-btn .note-label {
-                font-size: 0.55rem;
-            }
-        }
-
-        @media (orientation: landscape) and (max-height: 500px) {
-            .pitch-pipe-container {
-                width: 200px;
-                height: 200px;
-            }
-
-            .number-btn {
-                width: 35px;
-                height: 35px;
-                font-size: 0.9rem;
-                border: 2px solid #57534e;
-            }
-
-            .number-btn .note-label {
-                font-size: 0.45rem;
+                font-size: 0.5rem;
             }
         }
 
@@ -1448,7 +1473,14 @@
 
         function initInstallModal() {
             // Don't show if already installed as standalone app
-            if (window.matchMedia('(display-mode: standalone)').matches) return;
+            const isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
+                                navigator.standalone === true;
+
+            if (isInstalled) {
+                console.log('App already installed - hiding modal');
+                document.getElementById('install-modal-overlay').style.display = 'none';
+                return;
+            }
 
             // Show modal on load (unless dismissed in localStorage)
             if (!localStorage.getItem('installDismissed')) {
@@ -2027,9 +2059,19 @@
             navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW registration failed:', e));
         }
 
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape-primary').catch(e => console.warn('Orientation lock failed:', e));
+        function lockOrientation() {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape-primary')
+                    .then(() => console.log('Orientation locked to landscape'))
+                    .catch(e => console.warn('Orientation lock failed:', e));
+            }
         }
+
+        // Lock on load and when app comes to foreground
+        lockOrientation();
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) lockOrientation();
+        });
     </script>
 </body>
 </html>
