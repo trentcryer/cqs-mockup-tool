@@ -426,6 +426,109 @@
             display: none;
         }
 
+        .install-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .install-modal-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .install-modal {
+            background: #27251f;
+            border: 2px solid #f59e0b;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .install-modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .install-modal h2 {
+            color: #f59e0b;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .install-modal p {
+            color: #a1a1aa;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .install-modal-buttons {
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }
+
+        .install-btn-primary {
+            background: #f59e0b;
+            color: #1c1917;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .install-btn-primary:hover {
+            background: #fef08c;
+            transform: scale(1.02);
+        }
+
+        .install-btn-secondary {
+            background: transparent;
+            color: #a1a1aa;
+            border: 1px solid #57534e;
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .install-btn-secondary:hover {
+            background: #3f3a33;
+            color: #e4e4e7;
+        }
+
         .part-btn {
             flex: 1;
             padding: 5px 4px;
@@ -607,6 +710,19 @@
         <div id="tab-sheet-content" style="display:none" class="mb-4">
             <div id="osmd-container">
                 <div class="osmd-placeholder">Select a song and your part above to view sheet music</div>
+            </div>
+        </div>
+
+        <!-- Install Modal -->
+        <div id="install-modal-overlay" class="install-modal-overlay">
+            <div class="install-modal">
+                <div class="install-modal-icon">📱</div>
+                <h2>Get CQS Tag Teacher</h2>
+                <p>Install this app to your home screen for the best experience. Works offline and in landscape mode.</p>
+                <div class="install-modal-buttons">
+                    <button class="install-btn-primary" id="install-btn-primary" onclick="installApp()">Install to Home Screen</button>
+                    <button class="install-btn-secondary" onclick="dismissInstallModal()">Not Now</button>
+                </div>
             </div>
         </div>
 
@@ -1276,6 +1392,41 @@
 
             const freq = getSlotFrequency(slot);
             document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
+        }
+
+        // ==================== INSTALL MODAL ====================
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallModal();
+        });
+
+        function showInstallModal() {
+            // Don't show if already installed
+            if (window.matchMedia('(display-mode: standalone)').matches) return;
+            // Don't show if dismissed in this session
+            if (sessionStorage.getItem('installDismissed')) return;
+
+            const overlay = document.getElementById('install-modal-overlay');
+            overlay.classList.remove('hidden');
+        }
+
+        function dismissInstallModal() {
+            const overlay = document.getElementById('install-modal-overlay');
+            overlay.classList.add('hidden');
+            sessionStorage.setItem('installDismissed', 'true');
+        }
+
+        async function installApp() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const choiceResult = await deferredPrompt.userChoice;
+            if (choiceResult.outcome === 'accepted') {
+                deferredPrompt = null;
+                dismissInstallModal();
+            }
         }
 
         // ==================== FLOATING SLOTS PANEL ====================
