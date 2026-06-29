@@ -1402,37 +1402,14 @@
             deferredPrompt = e;
         });
 
-        function isIOS() {
-            return /iPad|iPhone|iPod/.test(navigator.userAgent);
-        }
-
         function initInstallModal() {
             // Don't show if already installed as standalone app
             if (window.matchMedia('(display-mode: standalone)').matches) return;
 
             // Show modal on load (unless dismissed in localStorage)
             if (!localStorage.getItem('installDismissed')) {
-                const modal = document.querySelector('.install-modal');
-                if (isIOS()) {
-                    updateModalForIOS();
-                }
                 showInstallModal();
             }
-        }
-
-        function updateModalForIOS() {
-            const heading = document.querySelector('.install-modal h2');
-            const description = document.querySelector('.install-modal p');
-            const primaryBtn = document.getElementById('install-btn-primary');
-
-            heading.textContent = 'Add to Home Screen';
-            description.innerHTML = 'Tap the <strong>Share</strong> button below, then select <strong>"Add to Home Screen"</strong> to install this app.';
-            primaryBtn.textContent = 'Show Me How →';
-            primaryBtn.onclick = () => showIOSInstructions();
-        }
-
-        function showIOSInstructions() {
-            alert('📱 Follow these steps:\n\n1️⃣ Tap the Share button (arrow pointing up)\n\n2️⃣ Scroll and tap "Add to Home Screen"\n\n3️⃣ Tap "Add" to confirm\n\nThe app will appear on your home screen and open in fullscreen landscape mode!');
         }
 
         function showInstallModal() {
@@ -1447,19 +1424,18 @@
         }
 
         async function installApp() {
-            if (isIOS()) {
-                showIOSInstructions();
-                return;
-            }
+            console.log('Install button clicked', { deferredPrompt, isStandalone: window.matchMedia('(display-mode: standalone)').matches });
 
             if (!deferredPrompt) {
-                alert('To install this app:\n\n📱 Android/Chrome: Tap menu (⋮) → "Install app"\n\n💻 Desktop: Use Chrome menu → "Install app"');
+                // Fallback if beforeinstallprompt not available (desktop, etc)
+                alert('To install this app:\n\n📱 Mobile: Tap menu (⋮) → "Install app" or "Add to Home Screen"\n\n🍎 iPhone: Tap Share → "Add to Home Screen"\n\n💻 Desktop: Use Chrome menu → "Install app"');
                 return;
             }
 
             try {
                 deferredPrompt.prompt();
                 const choiceResult = await deferredPrompt.userChoice;
+                console.log('Install choice:', choiceResult);
                 if (choiceResult.outcome === 'accepted') {
                     deferredPrompt = null;
                     dismissInstallModal();
