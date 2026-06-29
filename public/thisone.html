@@ -308,6 +308,88 @@
             font-size: 0.85rem;
         }
 
+        .floating-slots-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #27251f;
+            border: 2px solid #3f3a33;
+            border-radius: 16px;
+            padding: 12px;
+            z-index: 1000;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            min-width: 280px;
+            max-width: 320px;
+            user-select: none;
+        }
+
+        .floating-slots-panel.collapsed {
+            min-width: auto;
+            padding: 8px 12px;
+        }
+
+        .slots-drag-handle {
+            cursor: grab;
+            padding: 8px;
+            margin: -12px -12px 8px -12px;
+            border-radius: 12px 12px 0 0;
+            background: #1c1917;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+        }
+
+        .slots-drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .slots-drag-handle-text {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: #f59e0b;
+            flex: 1;
+            text-align: center;
+        }
+
+        .slots-panel-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .slots-panel-btn {
+            padding: 4px 8px;
+            font-size: 10px;
+            background: #3f3a33;
+            border: 1px solid #57534e;
+            border-radius: 6px;
+            color: #a1a1aa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .slots-panel-btn:hover {
+            background: #57534e;
+            color: #e4e4e7;
+        }
+
+        .slots-panel-btn.locked {
+            background: #f59e0b;
+            color: #1c1917;
+            border-color: #fef08c;
+        }
+
+        .slots-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .floating-slots-panel.collapsed .slots-content {
+            display: none;
+        }
+
         .part-btn {
             flex: 1;
             padding: 5px 4px;
@@ -489,6 +571,20 @@
         <div id="tab-sheet-content" style="display:none" class="mb-4">
             <div id="osmd-container">
                 <div class="osmd-placeholder">Select a song and your part above to view sheet music</div>
+            </div>
+        </div>
+
+        <!-- Floating Draggable Slots Panel -->
+        <div id="floating-slots-panel" class="floating-slots-panel" style="display:none">
+            <div class="slots-drag-handle" id="slots-drag-handle">
+                <div class="slots-drag-handle-text">SAVED SLOTS</div>
+                <div class="slots-panel-buttons">
+                    <button class="slots-panel-btn" id="slots-lock-btn" onclick="toggleSlotsLock()" title="Lock position">🔓</button>
+                    <button class="slots-panel-btn" id="slots-collapse-btn" onclick="toggleSlotsCollapse()" title="Collapse">−</button>
+                </div>
+            </div>
+            <div class="slots-content" id="floating-slots-content">
+                <!-- JS populates slot cards -->
             </div>
         </div>
 
@@ -1060,6 +1156,7 @@
         function updateSlotsDisplay() {
             const container = document.getElementById('slots-container');
             container.innerHTML = '';
+            populateFloatingSlots();
 
             customSlots.forEach(slot => {
                 const baseName = slot.labelNote
@@ -1146,6 +1243,149 @@
             document.getElementById('adjust-freq').innerHTML = `${freq.toFixed(1)} <span class="text-xs text-zinc-400">Hz</span>`;
         }
 
+        // ==================== FLOATING SLOTS PANEL ====================
+        let slotsLocked = false;
+        let slotsCollapsed = false;
+        let slotsPanelPosition = { x: 0, y: 0 };
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        function initFloatingSlotsPanel() {
+            const panel = document.getElementById('floating-slots-panel');
+            const handle = document.getElementById('slots-drag-handle');
+
+            // Load saved position from localStorage
+            const saved = localStorage.getItem('slotsPanelPosition');
+            if (saved) {
+                slotsPanelPosition = JSON.parse(saved);
+                panel.style.right = slotsPanelPosition.x + 'px';
+                panel.style.bottom = slotsPanelPosition.y + 'px';
+            }
+
+            // Load saved states
+            slotsLocked = localStorage.getItem('slotsLocked') === 'true';
+            slotsCollapsed = localStorage.getItem('slotsCollapsed') === 'true';
+            if (slotsLocked) updateLockButton();
+            if (slotsCollapsed) updateCollapseButton();
+
+            // Drag functionality
+            handle.addEventListener('mousedown', startDrag);
+            handle.addEventListener('touchstart', startDrag);
+            document.addEventListener('mousemove', draggingPanel);
+            document.addEventListener('touchmove', draggingPanel);
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+        }
+
+        function startDrag(e) {
+            if (slotsLocked || e.target.closest('.slots-panel-btn')) return;
+            isDragging = true;
+            const panel = document.getElementById('floating-slots-panel');
+            const rect = panel.getBoundingClientRect();
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            dragOffset = { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function draggingPanel(e) {
+            if (!isDragging) return;
+            const panel = document.getElementById('floating-slots-panel');
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            const x = clientX - dragOffset.x;
+            const y = clientY - dragOffset.y;
+            panel.style.right = 'auto';
+            panel.style.left = x + 'px';
+            panel.style.bottom = 'auto';
+            panel.style.top = y + 'px';
+        }
+
+        function stopDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+            const panel = document.getElementById('floating-slots-panel');
+            const rect = panel.getBoundingClientRect();
+            slotsPanelPosition = { x: Math.max(0, rect.right - window.innerWidth), y: Math.max(0, window.innerHeight - rect.bottom) };
+            localStorage.setItem('slotsPanelPosition', JSON.stringify(slotsPanelPosition));
+        }
+
+        function toggleSlotsLock() {
+            slotsLocked = !slotsLocked;
+            localStorage.setItem('slotsLocked', slotsLocked);
+            updateLockButton();
+        }
+
+        function updateLockButton() {
+            const btn = document.getElementById('slots-lock-btn');
+            btn.textContent = slotsLocked ? '🔒' : '🔓';
+            btn.classList.toggle('locked', slotsLocked);
+        }
+
+        function toggleSlotsCollapse() {
+            slotsCollapsed = !slotsCollapsed;
+            localStorage.setItem('slotsCollapsed', slotsCollapsed);
+            updateCollapseButton();
+        }
+
+        function updateCollapseButton() {
+            const panel = document.getElementById('floating-slots-panel');
+            const btn = document.getElementById('slots-collapse-btn');
+            panel.classList.toggle('collapsed', slotsCollapsed);
+            btn.textContent = slotsCollapsed ? '+' : '−';
+        }
+
+        function populateFloatingSlots() {
+            const container = document.getElementById('floating-slots-content');
+            container.innerHTML = '';
+            customSlots.forEach(slot => {
+                const baseName = slot.labelNote
+                    ? slot.labelNote + (slot.cents !== 0 ? ` ${slot.cents > 0 ? '+' : ''}${slot.cents}¢` : '')
+                    : getNoteNameForDegree(slot.baseDegree);
+                const displayNum = slot.labelNum || slot.baseDegree;
+
+                const card = document.createElement('div');
+                const isActive = activeSlotId === slot.id;
+                card.className = `slot-card-side slot-btn cursor-pointer transition-all ${isActive ? 'slot-active' : ''}`;
+                card.dataset.slotId = slot.id;
+
+                card.innerHTML = `
+                    <div style="font-size:0.6rem;color:#f59e0b;font-weight:700;letter-spacing:0.05em">S${slot.id}</div>
+                    <div style="font-family:monospace;font-size:1.15rem;font-weight:900;color:#6ee7b7;line-height:1.1">${displayNum}</div>
+                    <div style="font-size:0.55rem;color:#a1a1aa;line-height:1.2">${slot.labelNote || getNoteNameForDegree(slot.baseDegree)}</div>
+                    <div style="font-size:0.6rem;font-family:monospace;${slot.cents >= 0 ? 'color:#34d399' : 'color:#f87171'}">${slot.cents >= 0 ? '+' : ''}${slot.cents}¢</div>
+                `;
+
+                let holding = false;
+                card.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    card.setPointerCapture(e.pointerId);
+                    selectSlot(slot.id);
+                    const freq = getSlotFrequency(slot);
+                    playTone(freq, 99999, true, slot.cents || 0);
+                    card.classList.add('playing-sustain');
+                    holding = true;
+                });
+
+                card.addEventListener('pointerup', (e) => {
+                    if (holding) {
+                        stopAll();
+                        card.classList.remove('playing-sustain');
+                        holding = false;
+                    }
+                });
+
+                card.addEventListener('pointercancel', () => {
+                    if (holding) {
+                        stopAll();
+                        card.classList.remove('playing-sustain');
+                        holding = false;
+                    }
+                });
+
+                container.appendChild(card);
+            });
+        }
+
         // ==================== INITIALIZATION ====================
         function initializeApp() {
             // Default key
@@ -1155,6 +1395,7 @@
             createKeyButtons();
             createPitchPipe();
             updateSlotsDisplay();
+            initFloatingSlotsPanel();
 
             // Preload piano samples for the 15 chromatic notes in the default key
             initAudio();
@@ -1350,17 +1591,21 @@
             const sheetContent = document.getElementById('tab-sheet-content');
             const pitchBtn = document.getElementById('tab-pitch-btn');
             const sheetBtn = document.getElementById('tab-sheet-btn');
+            const floatingPanel = document.getElementById('floating-slots-panel');
 
             if (tab === 'pitch') {
                 pitchContent.style.display = '';
                 sheetContent.style.display = 'none';
                 pitchBtn.classList.add('active-tab');
                 sheetBtn.classList.remove('active-tab');
+                floatingPanel.style.display = 'none';
             } else {
                 pitchContent.style.display = 'none';
                 sheetContent.style.display = '';
                 pitchBtn.classList.remove('active-tab');
                 sheetBtn.classList.add('active-tab');
+                floatingPanel.style.display = 'block';
+                populateFloatingSlots();
                 renderSheet();
             }
         }
