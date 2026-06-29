@@ -353,6 +353,12 @@
         <!-- Song + Part Selector -->
         <div class="bg-zinc-900 border border-zinc-800 rounded-2xl px-3 py-2 mb-3">
             <div class="flex items-center gap-3 mb-2">
+                <div class="text-[9px] font-bold tracking-widest text-zinc-400 flex-shrink-0">SEARCH</div>
+                <input id="song-search" type="text" placeholder="Type song name..."
+                        class="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-sm text-zinc-200 focus:border-amber-500 outline-none"
+                        onkeyup="filterSongs()">
+            </div>
+            <div class="flex items-center gap-3 mb-2">
                 <div class="text-[9px] font-bold tracking-widest text-zinc-400 flex-shrink-0">SONG</div>
                 <select id="song-selector" onchange="onSongSelect()"
                         class="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-sm text-zinc-200 focus:border-amber-500 outline-none cursor-pointer">
@@ -1207,6 +1213,7 @@
 
         // ==================== SONG SELECTOR ====================
         let songs = [];
+        let allSongs = []; // Keep original list for filtering
         let currentSongXml = null;
         let osmd = null;
         let selectedPart = null;
@@ -1233,17 +1240,35 @@
             try {
                 const res = await fetch('https://pub-b9ad8544e5224fd1abbd12976d8f4d6f.r2.dev/songs.json');
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                songs = await res.json();
-                const sel = document.getElementById('song-selector');
-                songs.forEach((song, i) => {
-                    const opt = document.createElement('option');
-                    opt.value = i;
-                    opt.textContent = cleanTitle(song.title);
-                    sel.appendChild(opt);
-                });
+                allSongs = await res.json();
+                songs = allSongs;
+                populateSongDropdown(songs);
             } catch(e) {
                 console.warn('Could not load songs.json:', e);
             }
+        }
+
+        function populateSongDropdown(songList) {
+            const sel = document.getElementById('song-selector');
+            sel.innerHTML = '<option value="">— Select a song —</option>';
+            songList.forEach((song, i) => {
+                const originalIdx = allSongs.indexOf(song);
+                const opt = document.createElement('option');
+                opt.value = originalIdx;
+                opt.textContent = cleanTitle(song.title);
+                sel.appendChild(opt);
+            });
+        }
+
+        function filterSongs() {
+            const searchTerm = document.getElementById('song-search').value.toLowerCase();
+            if (!searchTerm) {
+                songs = allSongs;
+                populateSongDropdown(songs);
+                return;
+            }
+            songs = allSongs.filter(song => cleanTitle(song.title).toLowerCase().includes(searchTerm));
+            populateSongDropdown(songs);
         }
 
         function selectPart(part) {
