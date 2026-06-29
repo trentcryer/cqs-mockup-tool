@@ -1192,7 +1192,6 @@
         function updateSlotsDisplay() {
             const container = document.getElementById('slots-container');
             container.innerHTML = '';
-            populateFloatingSlots();
 
             customSlots.forEach(slot => {
                 const baseName = slot.labelNote
@@ -1373,6 +1372,7 @@
         function populateFloatingSlots() {
             const container = document.getElementById('floating-slots-content');
             container.innerHTML = '';
+
             customSlots.forEach(slot => {
                 const baseName = slot.labelNote
                     ? slot.labelNote + (slot.cents !== 0 ? ` ${slot.cents > 0 ? '+' : ''}${slot.cents}¢` : '')
@@ -1391,11 +1391,16 @@
                     <div style="font-size:0.6rem;font-family:monospace;${slot.cents >= 0 ? 'color:#34d399' : 'color:#f87171'}">${slot.cents >= 0 ? '+' : ''}${slot.cents}¢</div>
                 `;
 
+                // HOLD = sustain note, RELEASE = stop
                 let holding = false;
                 card.addEventListener('pointerdown', (e) => {
                     e.preventDefault();
                     card.setPointerCapture(e.pointerId);
+
+                    // Select this slot
                     selectSlot(slot.id);
+
+                    // Play and sustain (pass slot's cents so it switches to osc if micro-adjusted)
                     const freq = getSlotFrequency(slot);
                     playTone(freq, 99999, true, slot.cents || 0);
                     card.classList.add('playing-sustain');
