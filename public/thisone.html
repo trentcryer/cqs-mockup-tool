@@ -936,10 +936,35 @@
             }
         }
 
-        // Stop both oscillator and sample
+        // Stop ALL audio: both oscillator AND piano sample
         function stopAll() {
-            stopAll();
-            stopCurrentSample();
+            try {
+                // Stop oscillator if playing
+                if (currentOscillator && currentGain && audioContext) {
+                    const now = audioContext.currentTime;
+                    currentGain.gain.cancelScheduledValues(now);
+                    const currentValue = currentGain.gain.value;
+                    if (currentValue > 0) {
+                        currentGain.gain.setValueAtTime(currentValue, now);
+                        currentGain.gain.linearRampToValueAtTime(0, now + 0.12);
+                    }
+                    try {
+                        currentOscillator.stop(now + 0.12);
+                    } catch (e) {}
+                    currentOscillator = null;
+                    currentGain = null;
+                }
+
+                // Stop piano sample if playing
+                if (currentSampleNode) {
+                    try {
+                        currentSampleNode.stop();
+                    } catch (e) {}
+                    currentSampleNode = null;
+                }
+            } catch (e) {
+                console.error('Error in stopAll:', e);
+            }
         }
 
         // Smart playTone: uses piano sample if cents=0, else uses oscillator
@@ -991,25 +1016,6 @@
             currentOscillator = osc;
             currentGain = gain;
         }
-
-        function stopAll() {
-            if (!audioContext || !currentOscillator || !currentGain) return;
-
-            try {
-                const now = audioContext.currentTime;
-                const oscToStop = currentOscillator;
-                const gainToStop = currentGain;
-
-                currentOscillator = null;
-                currentGain = null;
-
-                gainToStop.gain.cancelScheduledValues(now);
-
-                const currentValue = gainToStop.gain.value;
-                if (currentValue > 0) {
-                    gainToStop.gain.setValueAtTime(currentValue, now);
-                    gainToStop.gain.linearRampToValueAtTime(0, now + 0.12);
-                }
 
                 setTimeout(() => {
                     try { oscToStop.stop(); } catch(e) {}
