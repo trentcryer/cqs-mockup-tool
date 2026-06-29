@@ -2056,6 +2056,18 @@
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) lockOrientation();
         });
+
+        // Fix skewing when orientation changes
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                // Force layout recalculation
+                window.dispatchEvent(new Event('resize'));
+                document.body.style.transform = 'translateZ(0)'; // Force GPU redraw
+                setTimeout(() => {
+                    document.body.style.transform = '';
+                }, 100);
+            }, 100);
+        });
     </script>
 </body>
 </html>
