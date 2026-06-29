@@ -1805,7 +1805,7 @@
             });
 
             const idx = parseInt(document.getElementById('song-selector').value);
-            const song = songs[idx];
+            const song = allSongs[idx];
             if (song) {
                 // Re-fill slots using this part's top numbers if available
                 const partData = song.parts?.[part.charAt(0).toUpperCase() + part.slice(1)];
@@ -1852,7 +1852,7 @@
             const sel = document.getElementById('song-selector');
             const idx = parseInt(sel.value);
             if (isNaN(idx)) return;
-            const song = songs[idx];
+            const song = allSongs[idx];
             if (!song) return;
 
             if (selectedPart) {
@@ -1868,6 +1868,11 @@
                 // No part selected — fill from overall top numbers
                 fillSlots(song.top_numbers || []);
                 currentSongXml = null;
+            }
+
+            // Re-render if sheet tab is open
+            if (document.getElementById('tab-sheet-content').style.display !== 'none') {
+                renderSheet();
             }
         }
 
